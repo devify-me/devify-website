@@ -1,0 +1,135 @@
+---
+title: Notification Module
+description: Built-in notification module — in-app notifications, unread tracking, preferences, and optional email delivery.
+---
+
+The notification module provides an in-app notification system. It handles user-scoped notifications, unread count tracking, per-user preferences, and optional email delivery. It reacts to events from other modules to automatically notify users. It depends on the [auth module](/built-in-modules/auth/) for user identity. Tenant integration is optional.
+
+## Features
+
+- In-app notification system (notification bell)
+- User-scoped notifications
+- Unread count tracking
+- Mark read / mark all read
+- Notification preferences (channels, muted types)
+- Optional email delivery
+- Event-driven — auto-notifies on tenant invites, billing events
+- Configurable per-user limit and cleanup
+
+## Configuration
+
+```toml
+[modules.notification]
+email_enabled = true
+max_per_user = 500
+cleanup_after_days = 90
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"}
+}
+```
+
+The notification module uses `auth.UserService` to resolve users. Tenant integration is optional — when the [tenant module](/built-in-modules/tenant/) is present, the notification module subscribes to tenant events.
+
+## HTTP Routes
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/notifications` | List notifications (?unread=true&limit=20&offset=0) | RequireAuth |
+| GET | `/notifications/unread-count` | Get unread count | RequireAuth |
+| PATCH | `/notifications/{id}/read` | Mark as read | RequireAuth |
+| POST | `/notifications/read-all` | Mark all as read | RequireAuth |
+| DELETE | `/notifications/{id}` | Delete notification | RequireAuth |
+| GET | `/notifications/preferences` | Get preferences | RequireAuth |
+| PATCH | `/notifications/preferences` | Update preferences | RequireAuth |
+
+## NotificationService Interface
+
+Exported for other modules via DI as `notification.service`:
+
+```go
+type NotificationService interface {
+    Send(ctx context.Context, userID uuid.UUID, typ, title, body string, metadata map[string]any) (*Notification, error)
+    List(ctx context.Context, userID uuid.UUID, unreadOnly bool, limit, offset int) ([]Notification, int, error)
+    MarkRead(ctx context.Context, id, userID uuid.UUID) error
+    MarkAllRead(ctx context.Context, userID uuid.UUID) error
+    UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
+    Delete(ctx context.Context, id, userID uuid.UUID) error
+    GetPreferences(ctx context.Context, userID uuid.UUID) (*Preferences, error)
+    UpdatePreferences(ctx context.Context, userID uuid.UUID, channels map[string]bool, mutedTypes []string) error
+}
+```
+
+## Events
+
+| Event Name | Payload | When |
+|-----------|---------|------|
+| `notification.sent` | `*Notification` | After a notification is sent to a user |
+
+## Event Subscriptions
+
+The notification module subscribes to events from the tenant and billing modules to automatically notify users:
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("tenant.invite_created", func(e kernel.Event) error {
+        invite := e.Payload.(*tenantpkg.Invite)
+        _, err := m.notificationService.Send(context.Background(), invite.UserID,
+            "tenant.invite", "You've been invited", "You were invited to join a workspace.",
+            map[string]any{"tenant_id": invite.TenantID, "token": invite.Token})
+        return err
+    })
+
+    bus.Subscribe("tenant.member_added", func(e kernel.Event) error {
+        member := e.Payload.(*tenantpkg.Member)
+        _, err := m.notificationService.Send(context.Background(), member.UserID,
+            "tenant.member_added", "Welcome", "You were added to a workspace.",
+            map[string]any{"tenant_id": member.TenantID})
+        return err
+    })
+
+    bus.Subscribe("billing.limit_reached", func(e kernel.Event) error {
+        alert := e.Payload.(*billingpkg.UsageAlert)
+        _, err := m.notificationService.Send(context.Background(), alert.OwnerID,
+            "billing.limit_reached", "Usage limit reached",
+            "You have reached the limit for "+alert.FeatureKey+".",
+            map[string]any{"feature_key": alert.FeatureKey})
+        return err
+    })
+
+    bus.Subscribe("billing.plan_changed", func(e kernel.Event) error {
+        sub := e.Payload.(*billingpkg.Subscription)
+        _, err := m.notificationService.Send(context.Background(), sub.OwnerID,
+            "billing.plan_changed", "Plan updated", "Your subscription plan has been changed.",
+            map[string]any{"plan_id": sub.PlanID})
+        return err
+    })
+}
+```
+
+## Scheduled Tasks
+
+```go
+func (m *Module) ScheduledTasks() []kernel.ScheduledTask {
+    return []kernel.ScheduledTask{
+        {
+            Name:     "notification.cleanup",
+            Schedule: "@daily",
+            Handler:  m.cleanupOldNotifications,
+        },
+    }
+}
+```
+
+Deletes notifications older than `cleanup_after_days` (default: 90 days).
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `notification.notifications` | id, user_id, type, title, body, metadata (JSONB), read_at, created_at |
+| `notification.preferences` | id, user_id, channels (JSONB), muted_types (TEXT[]), updated_at |

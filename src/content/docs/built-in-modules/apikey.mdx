@@ -1,0 +1,89 @@
+---
+title: API Key Module
+description: Built-in API key module — programmatic API access via long-lived keys as an alternative to session/JWT authentication.
+---
+
+The API key module provides programmatic API access via long-lived keys. It serves as an alternative to session or JWT authentication, ideal for CI/CD pipelines, scripts, and third-party integrations. Keys are SHA-256 hashed at rest and the plaintext is shown only once on creation.
+
+## Features
+
+- Programmatic API access via API keys
+- Alternative to session/JWT authentication
+- Key format: `dvfy_` prefix + 32 hex chars
+- SHA-256 hashed storage (plaintext shown once on creation)
+- Prefix-based lookup for fast validation
+- Optional tenant scope
+- Optional permission scopes
+- Optional expiry
+- Configurable max keys per user
+- `last_used_at` tracking
+
+## Configuration
+
+```toml
+[modules.apikey]
+max_keys_per_user = 10
+default_expiry = ""
+key_prefix = "dvfy_"
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"}
+}
+```
+
+The API key module uses `auth.UserService` to resolve the user associated with a validated key.
+
+## HTTP Routes
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/api-keys` | Create key (returns plaintext once) | RequireAuth |
+| GET | `/api-keys` | List user's keys | RequireAuth |
+| GET | `/api-keys/{id}` | Get key details (no plaintext) | RequireAuth |
+| DELETE | `/api-keys/{id}` | Revoke key | RequireAuth |
+
+## APIKeyService Interface
+
+Exported as `apikey.service`:
+
+```go
+type APIKeyService interface {
+    Create(ctx context.Context, userID uuid.UUID, tenantID *uuid.UUID, name string, scopes []string, expiresAt *time.Time) (key string, apiKey *APIKey, err error)
+    List(ctx context.Context, userID uuid.UUID) ([]APIKey, error)
+    GetByID(ctx context.Context, id, userID uuid.UUID) (*APIKey, error)
+    Revoke(ctx context.Context, id, userID uuid.UUID) error
+    Validate(ctx context.Context, rawKey string) (*APIKey, error)
+    TouchLastUsed(ctx context.Context, id uuid.UUID) error
+}
+```
+
+## Events
+
+| Event Name | Payload | When |
+|-----------|---------|------|
+| `apikey.created` | `*APIKey` | After a new key is created |
+| `apikey.revoked` | `*APIKey` | After a key is revoked |
+
+## Middleware
+
+- **AuthenticateAPIKey** — global middleware (via `HasMiddleware`). Checks the `Authorization: Bearer dvfy_xxx` header. If the prefix matches, validates the key and injects the user ID and optional tenant ID into the request context using the same context keys as the auth module. If no `dvfy_` prefix is found, the middleware falls through to session/JWT authentication. Works alongside session/JWT auth seamlessly.
+
+```go
+apikeymw.AuthenticateAPIKey(apiKeyService)
+```
+
+## Scheduled Tasks
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `apikey.cleanup` | Daily | Deletes keys that expired more than 30 days ago |
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `apikey.keys` | id, user_id, tenant_id, name, prefix, key_hash, scopes (TEXT[]), expires_at, last_used_at, revoked_at, created_at |
