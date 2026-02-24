@@ -1,0 +1,23 @@
+---
+import { Code } from 'astro:components';
+
+const code = `// cmd/app/main.go — Wire modules at boot
+k, _ := kernel.NewKernel("config/config.toml",
+    kernel.WithRouter(chiRouter.New()),
+    kernel.WithDatabase(db),
+    kernel.WithCache(cache),
+)
+
+k.Register(authmod.New())     // identity & login
+k.Register(rbacmod.New())     // roles & permissions
+k.Register(billingmod.New())  // your module
+
+k.Boot() // resolves deps, runs migrations, wires events`;
+---
+
+<section class="code-section">
+  <div class="container reveal">
+    <p class="code-label">// See it in action</p>
+    <Code code={code} lang="go" theme="one-dark-pro" />
+  </div>
+</section>

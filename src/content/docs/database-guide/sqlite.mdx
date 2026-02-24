@@ -1,0 +1,46 @@
+---
+title: SQLite
+description: SQLite configuration for development and lightweight deployments.
+---
+
+SQLite is ideal for development and small deployments. No external database server needed.
+
+## Configuration
+
+```toml
+[database]
+engine = "sqlite"
+name = "./data/app.db"
+```
+
+The `name` field is the file path for the SQLite database. Devify creates the file automatically.
+
+## Table Prefix Isolation
+
+Like MySQL, SQLite uses table prefixes:
+
+- `auth_users`, `auth_password_resets`
+- `rbac_roles`, `rbac_permissions`
+
+## Advantages
+
+- Zero setup — no database server to install or configure
+- Single file — easy to backup and distribute
+- Great for development and testing
+- Pure Go driver (no CGO required)
+
+## Limitations
+
+- Not recommended for high-concurrency production workloads
+- Limited concurrent write performance
+- No schema-level isolation (uses table prefixes instead)
+
+## Development Workflow
+
+SQLite is perfect for quick iteration:
+
+```bash
+devify init my-app    # Select SQLite
+devify migrate        # Creates ./data/app.db automatically
+devify dev            # Start developing immediately
+```

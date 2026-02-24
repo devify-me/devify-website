@@ -1,0 +1,93 @@
+---
+title: Project Structure
+description: Understand the directory layout of a Devify project.
+---
+
+## Directory Layout
+
+A Devify project follows a strict structure that enforces clean separation of concerns:
+
+```
+my-app/
+├── cmd/
+│   ├── app/main.go         # Main binary — boots kernel, wires adapters
+│   └── cli/                 # CLI commands implementation
+├── kernel/                  # Shared core: interfaces, lifecycle, config
+├── modules/                 # Feature modules (auth, rbac, your modules)
+│   ├── auth/                # Authentication module
+│   └── rbac/                # Role-based access control module
+├── adapters/                # Infrastructure backends
+│   ├── database/            # postgres/, mysql/, sqlite/, mongodb/
+│   ├── cache/               # redis/, badger/, memory/
+│   ├── mail/                # smtp/
+│   ├── storage/             # local/, s3/
+│   └── renderer/            # templ/, gotemplate/
+├── config/config.toml       # Application configuration
+├── migrations/              # Kernel-level migrations
+├── views/                   # App-level template overrides
+├── public/                  # Static assets
+├── tests/                   # Integration tests
+└── docs/                    # Architecture documentation
+```
+
+## Dependency Flow
+
+The dependency flow is strict and one-directional:
+
+```
+cmd/ → kernel/ ← modules/ ← adapters/
+```
+
+- **kernel/** defines interfaces. It NEVER imports modules or adapters.
+- **modules/** import kernel interfaces. Modules NEVER import other modules' internal packages.
+- **adapters/** implement kernel interfaces (database, cache, mail, storage, renderer).
+- **cmd/** wires everything together at boot.
+
+## Key Directories
+
+### `cmd/`
+
+Entry points for the application. `cmd/app/main.go` is the main binary that boots the kernel, creates adapters, registers modules, and starts the server. `cmd/cli/` contains the CLI command implementations.
+
+### `kernel/`
+
+The stable foundation. Contains all shared interfaces (Router, DatabaseProvider, Cache, Mailer, Storage, EventBus, Scheduler, Logger, Config), the application lifecycle manager, dependency resolver with topological sort, and the EventBus implementation.
+
+### `modules/`
+
+Self-contained feature modules. Each module lives in its own directory and implements the `Module` interface. Modules communicate through service interfaces via dependency injection or through the EventBus — never by importing each other's packages.
+
+### `adapters/`
+
+Swappable infrastructure backends. Each adapter implements a kernel interface. You choose adapters at project init (e.g., PostgreSQL vs MySQL) and can switch them by changing config — no code changes needed.
+
+### `config/`
+
+TOML configuration files. The main `config.toml` contains all application settings, organized by section: `[app]`, `[server]`, `[database]`, `[cache]`, `[mail]`, `[storage]`, `[events]`, and `[modules.*]` for per-module config.
+
+## Module Internal Structure
+
+Every module follows a consistent directory layout:
+
+```
+modules/<name>/
+├── module/module.go     # Module interface implementation
+├── config.go            # Typed config struct
+├── handlers/            # HTTP handlers
+├── service/             # Business logic + exported interface
+│   ├── interface.go     # Public API (other modules depend on this)
+│   └── <name>_service.go
+├── repository/          # Database access
+│   ├── interface.go     # Repository interface
+│   └── postgres.go      # DB-specific implementation
+├── migrations/          # Go migration functions
+├── events/              # Event types + subscribers
+├── middleware/           # Module-specific middleware
+├── commands/            # CLI subcommands
+└── views/               # Templ templates
+```
+
+## Next Steps
+
+- [Learn about the architecture](/architecture/overview/)
+- [Create your first module](/module-development/creating-a-module/)

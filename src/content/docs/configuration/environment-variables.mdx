@@ -1,0 +1,68 @@
+---
+title: Environment Variables
+description: Override TOML configuration with environment variables.
+---
+
+All TOML configuration values can be overridden with environment variables, following the 12-factor app methodology.
+
+## Convention
+
+Environment variables follow the pattern:
+
+```
+DEVIFY_<SECTION>_<KEY>
+```
+
+For example:
+
+| TOML Key | Environment Variable |
+|----------|---------------------|
+| `database.host` | `DEVIFY_DATABASE_HOST` |
+| `database.port` | `DEVIFY_DATABASE_PORT` |
+| `app.log_level` | `DEVIFY_APP_LOG_LEVEL` |
+| `modules.auth.strategy` | `DEVIFY_MODULES_AUTH_STRATEGY` |
+| `cache.engine` | `DEVIFY_CACHE_ENGINE` |
+
+## Underscore Handling
+
+TOML keys with underscores use double underscore (`__`) in environment variables:
+
+| TOML Key | Environment Variable |
+|----------|---------------------|
+| `database.ssl_mode` | `DEVIFY_DATABASE_SSL__MODE` |
+| `database.max_open_conns` | `DEVIFY_DATABASE_MAX__OPEN__CONNS` |
+
+Single underscores in env vars represent the section separator (`.`), while double underscores represent literal underscores in the key name.
+
+## Override Priority
+
+Environment variables always take precedence over TOML file values:
+
+1. TOML file values (base)
+2. Environment variables (override)
+
+## Common Overrides
+
+```bash
+# Production database
+export DEVIFY_DATABASE_HOST=prod-db.example.com
+export DEVIFY_DATABASE_PASSWORD=secret
+
+# Change log level
+export DEVIFY_APP_LOG__LEVEL=error
+
+# Switch cache engine
+export DEVIFY_CACHE_ENGINE=redis
+
+# Auth settings
+export DEVIFY_MODULES_AUTH_JWT__SECRET=production-secret-key
+```
+
+## Docker / Podman
+
+```bash
+podman run -e DEVIFY_DATABASE_HOST=db \
+           -e DEVIFY_DATABASE_PASSWORD=secret \
+           -e DEVIFY_APP_ENV=production \
+           my-app
+```

@@ -1,0 +1,88 @@
+---
+title: Module System
+description: How Devify modules work — the core interface and optional capabilities.
+---
+
+## Core Module Interface
+
+Every module must implement the `Module` interface:
+
+```go
+type Module interface {
+    Name() string            // Unique identifier (e.g., "auth", "rbac")
+    Version() string         // Semantic version (e.g., "1.0.0")
+    Dependencies() []string  // Names of required modules
+    Init(k *Kernel) error    // Called during boot in dependency order
+    Shutdown() error         // Called during shutdown in reverse order
+}
+```
+
+## Optional Capabilities
+
+Modules declare additional capabilities by implementing optional interfaces. The kernel discovers these at boot time.
+
+| Interface | Method | Purpose |
+|-----------|--------|---------|
+| `HasRoutes` | `RegisterRoutes(r Router)` | Mount HTTP routes |
+| `HasMigrations` | `Migrations() []Migration` | Provide database migrations |
+| `HasEvents` | `RegisterEvents(bus EventBus)` | Subscribe to events |
+| `HasScheduledTasks` | `ScheduledTasks() []ScheduledTask` | Register cron tasks |
+| `HasMiddleware` | `Middleware() []func(http.Handler) http.Handler` | Provide global middleware |
+| `HasCommands` | `Commands() []Command` | Add CLI subcommands |
+| `HasConfig` | `DefaultConfig() any` | Declare typed config struct |
+
+## Dependency Resolution
+
+When `Boot()` is called, the kernel:
+
+1. Collects all registered modules
+2. Builds a dependency graph from each module's `Dependencies()` return value
+3. Runs topological sort (Kahn's algorithm) to determine initialization order
+4. Detects cycles — if found, boot fails immediately with a clear error
+5. Validates all declared dependencies are registered — missing deps fail boot
+6. Initializes modules in topological order
+
+### Example
+
+The RBAC module declares a dependency on auth:
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"}
+}
+```
+
+The kernel ensures auth is always initialized before RBAC. If auth is not registered, boot fails with: `module "rbac" depends on "auth" which is not registered`.
+
+## Compile-Time Interface Assertions
+
+Modules use compile-time assertions to guarantee they implement the correct interfaces:
+
+```go
+var (
+    _ kernel.Module         = (*Module)(nil)
+    _ kernel.HasRoutes      = (*Module)(nil)
+    _ kernel.HasMigrations  = (*Module)(nil)
+    _ kernel.HasEvents      = (*Module)(nil)
+    _ kernel.HasMiddleware  = (*Module)(nil)
+    _ kernel.HasCommands    = (*Module)(nil)
+    _ kernel.HasConfig      = (*Module)(nil)
+)
+```
+
+This pattern catches missing interface methods at compile time rather than runtime.
+
+## Service Registration
+
+Modules expose services for other modules via the kernel's service locator:
+
+```go
+// In auth module's Init():
+k.RegisterService("auth.user_service", m.authService)
+
+// In RBAC module's Init():
+svc, ok := k.Service("auth.user_service")
+userSvc := svc.(authservice.UserService)
+```
+
+This allows cross-module communication without direct package imports.

@@ -1,0 +1,47 @@
+---
+title: MySQL / MariaDB
+description: MySQL and MariaDB configuration with table-prefix isolation.
+---
+
+MySQL and MariaDB use **table-prefix isolation** — module tables are prefixed with the module name.
+
+## Configuration
+
+```toml
+[database]
+engine = "mysql"
+host = "localhost"
+port = 3306
+name = "my_app_dev"
+user = "root"
+password = ""
+```
+
+## Table Prefix Isolation
+
+Unlike PostgreSQL's schema-per-module approach, MySQL uses table prefixes:
+
+- `auth_users`, `auth_password_resets`
+- `rbac_roles`, `rbac_permissions`
+- `billing_invoices`
+
+All tables live in a single database but are logically separated by prefix.
+
+## Migrations
+
+Migrations use the same Go function format. SQL syntax should use MySQL dialect:
+
+```go
+Up: func(ctx context.Context, db *sql.DB) error {
+    _, err := db.ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS billing_invoices (
+            id CHAR(36) PRIMARY KEY,
+            customer_id CHAR(36) NOT NULL,
+            amount BIGINT NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `)
+    return err
+}
+```

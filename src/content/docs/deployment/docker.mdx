@@ -1,0 +1,95 @@
+---
+title: Docker & Podman
+description: Containerize your Devify application with Docker or Podman.
+---
+
+## Multi-Stage Dockerfile
+
+```dockerfile
+# Build stage
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/server ./cmd/app/
+
+# Runtime stage
+FROM alpine:3.21
+
+RUN adduser -D -g '' appuser
+WORKDIR /app
+
+COPY --from=builder /app/bin/server .
+COPY config/config.toml ./config/
+
+USER appuser
+EXPOSE 4000
+
+CMD ["./server"]
+```
+
+## Docker Compose
+
+```yaml
+services:
+  app:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - DEVIFY_DATABASE_HOST=db
+      - DEVIFY_DATABASE_PASSWORD=secret
+      - DEVIFY_APP_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: my_app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+```
+
+## Podman
+
+The Dockerfile works identically with Podman:
+
+```bash
+podman build -t my-app .
+podman run -p 4000:4000 \
+  -e DEVIFY_DATABASE_HOST=db \
+  -e DEVIFY_APP_ENV=production \
+  my-app
+```
+
+## Podman Compose
+
+```bash
+podman-compose up -d
+```
+
+## Health Check
+
+Add a health check endpoint in your application to verify the server is running and database connections are healthy.
+
+## Production Considerations
+
+- Run as non-root user (`appuser` in the Dockerfile)
+- Use Alpine-based images for minimal size
+- Set appropriate resource limits
+- Use `depends_on` with health checks for database readiness
+- Store secrets via environment variables, not in config files

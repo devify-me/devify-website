@@ -1,0 +1,32 @@
+---
+import LandingLayout from '../layouts/LandingLayout.astro';
+import Navbar from '../components/landing/Navbar.astro';
+import Hero from '../components/landing/Hero.astro';
+import TerminalDemo from '../components/landing/TerminalDemo.astro';
+import FeaturesGrid from '../components/landing/FeaturesGrid.astro';
+import ArchitectureDiagram from '../components/landing/ArchitectureDiagram.astro';
+import CodeExample from '../components/landing/CodeExample.astro';
+import ModuleShowcase from '../components/landing/ModuleShowcase.astro';
+import DatabaseSupport from '../components/landing/DatabaseSupport.astro';
+import CLICommands from '../components/landing/CLICommands.astro';
+import CTA from '../components/landing/CTA.astro';
+import Footer from '../components/landing/Footer.astro';
+---
+
+<LandingLayout>
+  <Navbar />
+  <Hero />
+  <TerminalDemo />
+  <FeaturesGrid />
+  <ArchitectureDiagram />
+  <CodeExample />
+  <ModuleShowcase />
+  <DatabaseSupport />
+  <CLICommands />
+  <CTA />
+  <Footer />
+</LandingLayout>
+
+<script>
+  import '../scripts/scroll-animations';
+</script>

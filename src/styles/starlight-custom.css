@@ -1,0 +1,45 @@
+/* Devify brand overrides for Starlight */
+:root {
+  --sl-color-accent-low: #2a0e1e;
+  --sl-color-accent: #fa3aab;
+  --sl-color-accent-high: #ff66c4;
+  --sl-color-white: #e8e8ef;
+  --sl-color-gray-1: #e8e8ef;
+  --sl-color-gray-2: #b8b8cc;
+  --sl-color-gray-3: #8888a0;
+  --sl-color-gray-4: #55556a;
+  --sl-color-gray-5: #2e1a40;
+  --sl-color-gray-6: #160e20;
+  --sl-color-gray-7: #0a0610;
+  --sl-color-black: #0a0610;
+  --sl-font: 'Outfit Variable', 'Outfit', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+  --sl-content-width: 50rem;
+  --sl-text-5xl: 3.5rem;
+}
+
+[data-theme='light']:root {
+  --sl-color-accent-low: #fce8f3;
+  --sl-color-accent: #d92d8a;
+  --sl-color-accent-high: #8b1455;
+  --sl-color-gray-1: #1a1025;
+  --sl-color-gray-2: #33264a;
+  --sl-color-gray-3: #55556a;
+  --sl-color-gray-4: #8888a0;
+  --sl-color-gray-5: #d4d4e0;
+  --sl-color-gray-6: #f0eef5;
+  --sl-color-gray-7: #faf9fc;
+  --sl-color-white: #1a1025;
+  --sl-color-black: #faf9fc;
+}
+
+/* Code blocks */
+.expressive-code {
+  --ec-codeBg: #100a18 !important;
+  --ec-codeBrdCol: #1e1230 !important;
+}
+
+[data-theme='light'] .expressive-code {
+  --ec-codeBg: #f5f0fa !important;
+  --ec-codeBrdCol: #d4d4e0 !important;
+}

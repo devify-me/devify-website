@@ -1,0 +1,93 @@
+---
+title: Routes & Handlers
+description: Define HTTP endpoints and handle requests in your module.
+---
+
+## Implementing HasRoutes
+
+To add HTTP routes, implement the `HasRoutes` interface:
+
+```go
+func (m *Module) RegisterRoutes(r kernel.Router) {
+    r.Group("/billing", func(r kernel.Router) {
+        r.Handle("GET", "/invoices", m.handler.ListInvoices)
+        r.Handle("POST", "/invoices", m.handler.CreateInvoice)
+        r.Handle("GET", "/invoices/{id}", m.handler.GetInvoice)
+    })
+}
+```
+
+The kernel calls `RegisterRoutes` during boot after all modules are initialized.
+
+## Handler Pattern
+
+Handlers are methods on a struct that holds injected dependencies:
+
+```go
+package handlers
+
+type Handler struct {
+    service  service.BillingService
+    logger   kernel.Logger
+}
+
+func New(svc service.BillingService, logger kernel.Logger) *Handler {
+    return &Handler{service: svc, logger: logger}
+}
+
+func (h *Handler) ListInvoices(w http.ResponseWriter, r *http.Request) {
+    invoices, err := h.service.ListInvoices(r.Context())
+    if err != nil {
+        h.logger.Error("listing invoices", "error", err)
+        http.Error(w, "internal error", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(invoices)
+}
+```
+
+## Request Parsing
+
+For JSON request bodies:
+
+```go
+func (h *Handler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
+    var req CreateInvoiceRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    invoice, err := h.service.CreateInvoice(r.Context(), req.CustomerID, req.Amount)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(invoice)
+}
+```
+
+## Applying Middleware Per-Route
+
+You can apply middleware to specific route groups:
+
+```go
+func (m *Module) RegisterRoutes(r kernel.Router) {
+    r.Group("/billing", func(r kernel.Router) {
+        // Public routes
+        r.Handle("GET", "/plans", m.handler.ListPlans)
+
+        // Protected routes
+        r.Group("", func(r kernel.Router) {
+            r.Use(authmw.RequireAuth(m.authStrategy, m.userService))
+            r.Handle("GET", "/invoices", m.handler.ListInvoices)
+            r.Handle("POST", "/invoices", m.handler.CreateInvoice)
+        })
+    })
+}
+```

@@ -1,0 +1,57 @@
+---
+title: Building for Production
+description: Build and deploy your Devify application as a single binary.
+---
+
+## Build Command
+
+```bash
+devify build
+```
+
+This runs:
+1. `templ generate` — compiles Templ templates (if present)
+2. `go build ./cmd/app/` — produces a single binary
+
+The output binary is at `./tmp/main` by default.
+
+## Production Build
+
+For a production-optimized build:
+
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ./bin/app ./cmd/app/
+```
+
+Flags:
+- `CGO_ENABLED=0` — static binary (required for SQLite without CGO)
+- `-ldflags="-s -w"` — strip debug info, smaller binary
+- `-o ./bin/app` — custom output path
+
+## Running in Production
+
+```bash
+# Set environment variables for production
+export DEVIFY_APP_ENV=production
+export DEVIFY_DATABASE_HOST=prod-db.example.com
+export DEVIFY_DATABASE_PASSWORD=secret-password
+
+# Run the binary
+./bin/app
+```
+
+Or use the CLI:
+
+```bash
+devify run
+```
+
+## CGO Considerations
+
+- **PostgreSQL, MySQL, MongoDB**: No CGO needed — pure Go drivers
+- **SQLite**: Uses `modernc.org/sqlite` (pure Go) — no CGO needed
+- All database drivers work with `CGO_ENABLED=0`
+
+## Binary Size
+
+A typical Devify application with auth + RBAC modules produces a binary around 15-25 MB. With `-ldflags="-s -w"`, this drops to 10-18 MB.

@@ -1,0 +1,83 @@
+---
+title: Migrations
+description: Database schema changes using Go functions.
+---
+
+## Migration Format
+
+Devify uses **Go functions** as the universal migration format. This works consistently across all 4 supported database engines.
+
+```go
+type Migration struct {
+    Version     string
+    Description string
+    Up          func(ctx context.Context, db *sql.DB) error
+    Down        func(ctx context.Context, db *sql.DB) error
+}
+```
+
+## Writing Migrations
+
+In `migrations/migrations.go`:
+
+```go
+package migrations
+
+func All() []kernel.Migration {
+    return []kernel.Migration{
+        {
+            Version:     "001",
+            Description: "create invoices table",
+            Up: func(ctx context.Context, db *sql.DB) error {
+                _, err := db.ExecContext(ctx, `
+                    CREATE TABLE IF NOT EXISTS billing.invoices (
+                        id UUID PRIMARY KEY,
+                        customer_id UUID NOT NULL,
+                        amount BIGINT NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    )
+                `)
+                return err
+            },
+            Down: func(ctx context.Context, db *sql.DB) error {
+                _, err := db.ExecContext(ctx, "DROP TABLE IF EXISTS billing.invoices")
+                return err
+            },
+        },
+    }
+}
+```
+
+## CLI Commands
+
+```bash
+# Create a new migration
+devify migrate:create billing create_payments
+
+# Run all pending migrations
+devify migrate
+
+# Check migration status
+devify migrate:status
+
+# Rollback last migration batch for a module
+devify migrate:rollback billing
+```
+
+## How Migrations Run
+
+During `Boot()`, the kernel:
+
+1. Calls `Migrations()` on each module implementing `HasMigrations`
+2. Runs migrations in module dependency order (auth before RBAC)
+3. Records applied migrations in the `devify.migrations` table
+4. Skips already-applied migrations
+
+## Implementing HasMigrations
+
+```go
+func (m *Module) Migrations() []kernel.Migration {
+    return migrations.All()
+}
+```

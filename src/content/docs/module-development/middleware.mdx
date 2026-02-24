@@ -1,0 +1,72 @@
+---
+title: Middleware
+description: Create and apply HTTP middleware in your modules.
+---
+
+## Global Middleware
+
+Implement `HasMiddleware` to apply middleware to all routes:
+
+```go
+func (m *Module) Middleware() []func(http.Handler) http.Handler {
+    return []func(http.Handler) http.Handler{
+        m.requestLogger,
+    }
+}
+
+func (m *Module) requestLogger(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        start := time.Now()
+        next.ServeHTTP(w, r)
+        m.logger.Info("request",
+            "method", r.Method,
+            "path", r.URL.Path,
+            "duration", time.Since(start),
+        )
+    })
+}
+```
+
+## Route-Specific Middleware
+
+Apply middleware to specific route groups:
+
+```go
+func (m *Module) RegisterRoutes(r kernel.Router) {
+    r.Group("/api", func(r kernel.Router) {
+        r.Use(authmw.RequireAuth(m.strategy, m.userService))
+        r.Handle("GET", "/profile", m.handler.GetProfile)
+    })
+}
+```
+
+## Built-in Middleware
+
+### Auth Module
+
+- **RequireAuth** — verifies authentication (JWT token or session), injects user ID into context
+- **RequireGuest** — ensures the user is NOT authenticated (for login/register pages)
+
+```go
+authmw.RequireAuth(strategy, userService)
+```
+
+### RBAC Module
+
+- **RequireRole** — checks if the authenticated user has a specific role
+- **RequirePermission** — checks if the user has a specific permission (through any of their roles)
+
+```go
+rbacmw.RequireRole(rbacService, "admin")
+rbacmw.RequirePermission(rbacService, "billing:write")
+```
+
+These can be chained:
+
+```go
+r.Group("/admin", func(r kernel.Router) {
+    r.Use(authmw.RequireAuth(strategy, userService))
+    r.Use(rbacmw.RequirePermission(rbacService, "admin:read"))
+    r.Handle("GET", "/dashboard", m.handler.AdminDashboard)
+})
+```

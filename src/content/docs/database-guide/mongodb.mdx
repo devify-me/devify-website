@@ -1,0 +1,42 @@
+---
+title: MongoDB
+description: MongoDB configuration with collection-prefix isolation.
+---
+
+MongoDB support uses **collection-prefix isolation** — each module's collections are prefixed with the module name.
+
+## Configuration
+
+```toml
+[database]
+engine = "mongodb"
+host = "localhost"
+port = 27017
+name = "my_app_dev"
+user = ""
+password = ""
+```
+
+## Collection Prefix Isolation
+
+- `auth_users`, `auth_password_resets`
+- `rbac_roles`, `rbac_permissions`
+
+## Migrations
+
+MongoDB migrations use collection operations instead of SQL:
+
+```go
+Up: func(ctx context.Context, db *sql.DB) error {
+    // MongoDB adapter provides a different migration interface
+    // that works with collections instead of SQL tables
+    return nil
+}
+```
+
+## When to Choose MongoDB
+
+- Document-oriented data models
+- Flexible schema requirements
+- High write throughput needs
+- Existing MongoDB infrastructure

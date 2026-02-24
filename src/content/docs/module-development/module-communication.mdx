@@ -1,0 +1,85 @@
+---
+title: Module Communication
+description: Three patterns for inter-module communication in Devify.
+---
+
+Modules never import each other's internal packages. Devify provides three coupling levels for inter-module communication.
+
+## Level 1: Service Interface via DI
+
+The tightest (but still clean) coupling. One module exports a Go interface, another receives it at init.
+
+**Provider module (auth):**
+
+```go
+// In auth/service/interface.go
+type UserService interface {
+    FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+    FindByEmail(ctx context.Context, email string) (*User, error)
+}
+
+// In auth/module/module.go Init():
+k.RegisterService("auth.user_service", m.authService)
+```
+
+**Consumer module (RBAC):**
+
+```go
+// In rbac/module/module.go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"}
+}
+
+func (m *Module) Init(k *kernel.Kernel) error {
+    svc, ok := k.Service("auth.user_service")
+    if !ok {
+        return fmt.Errorf("auth.user_service not found")
+    }
+    m.userService = svc.(authservice.UserService)
+    return nil
+}
+```
+
+**When to use:** When you need direct, typed access to another module's functionality.
+
+## Level 2: EventBus
+
+Loose coupling through async pub/sub. The emitter has no knowledge of subscribers.
+
+**Emitter (auth):**
+
+```go
+s.eventBus.Emit(kernel.Event{
+    Name:    "auth.user_registered",
+    Payload: user,
+})
+```
+
+**Subscriber (RBAC):**
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("auth.user_registered", func(e kernel.Event) error {
+        user := e.Payload.(*auth.User)
+        return m.rbacService.AssignDefaultRole(context.Background(), user.ID)
+    })
+}
+```
+
+**When to use:** When the producer shouldn't know or care about consumers. Side effects, notifications, eventual consistency.
+
+## Level 3: No Communication
+
+Modules operate completely independently. They share no data and have no dependencies.
+
+**When to use:** For orthogonal features that serve different purposes (e.g., a logging module and a billing module).
+
+## Choosing the Right Level
+
+| Scenario | Recommended Level |
+|----------|------------------|
+| Module needs to call another's methods | Level 1 (DI) |
+| Module reacts to another's actions | Level 2 (EventBus) |
+| Modules are unrelated | Level 3 (None) |
+| Need guaranteed processing order | Level 1 (DI) |
+| Side effects, notifications | Level 2 (EventBus) |

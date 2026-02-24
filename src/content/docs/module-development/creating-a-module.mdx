@@ -1,0 +1,84 @@
+---
+title: Creating a Module
+description: Scaffold and register a new Devify module.
+---
+
+## Using the CLI
+
+The fastest way to create a module is with the CLI:
+
+```bash
+devify module:create billing
+```
+
+The CLI will interactively ask which capabilities you want:
+
+- Routes (HTTP endpoints)
+- Migrations (database schema)
+- Events (pub/sub)
+- Config (typed configuration)
+- Middleware (HTTP middleware)
+- Commands (CLI subcommands)
+- Scheduled tasks (cron jobs)
+
+You can also use flags to skip prompts:
+
+```bash
+devify module:create billing --routes --migrations --events --config
+```
+
+## Generated Files
+
+The CLI creates a complete module directory:
+
+```
+modules/billing/
+├── module/module.go      # Module interface implementation
+├── config.go             # Typed config struct
+├── handlers/handler.go   # HTTP handler stubs
+├── service/
+│   ├── interface.go      # Service interface
+│   └── billing_service.go
+├── repository/
+│   ├── interface.go      # Repository interface
+│   └── postgres.go       # DB implementation
+├── migrations/           # Migration stubs
+├── events/               # Event types + subscribers
+└── middleware/            # Middleware stubs
+```
+
+## Registering the Module
+
+Add your module to `cmd/app/main.go`:
+
+```go
+import billingmod "github.com/your-app/modules/billing/module"
+
+// After creating the kernel...
+if err := k.Register(billingmod.New()); err != nil {
+    log.Fatalf("registering billing module: %v", err)
+}
+```
+
+The kernel handles everything else — dependency resolution, migration execution, route mounting, and event wiring all happen automatically during `Boot()`.
+
+## Module Identity
+
+Every module needs a unique name and version:
+
+```go
+func (m *Module) Name() string    { return "billing" }
+func (m *Module) Version() string { return "1.0.0" }
+```
+
+## Declaring Dependencies
+
+If your module depends on another module's services:
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"} // billing needs auth.UserService
+}
+```
+
+Return `nil` if your module has no dependencies.

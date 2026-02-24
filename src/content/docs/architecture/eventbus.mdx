@@ -1,0 +1,99 @@
+---
+title: EventBus
+description: Channel-based async pub/sub for decoupled module communication.
+---
+
+The EventBus enables modules to communicate without importing each other. It uses Go channels for asynchronous event delivery.
+
+## How It Works
+
+The EventBus is a channel-based pub/sub system:
+
+1. Modules **subscribe** to event names during initialization
+2. When an event occurs, the emitting module calls `Emit()`
+3. The event is placed on a buffered channel
+4. A dispatcher goroutine delivers it to all subscribers
+5. Each subscriber runs in its own goroutine
+
+## Event Structure
+
+```go
+type Event struct {
+    Name    string
+    Payload any
+}
+```
+
+## Emitting Events
+
+### Async (default)
+
+```go
+k.EventBus().Emit(kernel.Event{
+    Name:    "auth.user_registered",
+    Payload: user,
+})
+```
+
+`Emit()` is non-blocking — it places the event on the channel and returns immediately. The subscriber handles it asynchronously.
+
+### Synchronous
+
+```go
+k.EventBus().EmitSync(kernel.Event{
+    Name:    "billing.payment_received",
+    Payload: payment,
+})
+```
+
+`EmitSync()` blocks until all subscribers have processed the event. Use this when you need to guarantee processing before continuing.
+
+## Subscribing to Events
+
+Modules subscribe in their `RegisterEvents()` method:
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("auth.user_registered", m.onUserRegistered)
+}
+
+func (m *Module) onUserRegistered(e kernel.Event) error {
+    user := e.Payload.(*auth.User)
+    return m.rbacService.AssignDefaultRole(context.Background(), user.ID)
+}
+```
+
+## Real-World Example
+
+When a user registers via the auth module:
+
+1. Auth service calls `Register()` which creates the user in the database
+2. Auth emits `auth.user_registered` with the user as payload
+3. The EventBus dispatches to all subscribers asynchronously
+4. RBAC's subscriber receives the event and assigns the default "user" role
+5. Auth's `Register()` has already returned — the role assignment happens in the background
+
+This means the auth module has zero knowledge of the RBAC module. They communicate purely through events.
+
+## Configuration
+
+The EventBus buffer size is configurable in `config/config.toml`:
+
+```toml
+[events]
+buffer_size = 256
+```
+
+This controls the channel buffer size. If the buffer fills up (all subscribers are slow), `Emit()` will block until space is available.
+
+## Error Handling
+
+Subscriber errors are logged but do not crash the bus. If one subscriber fails, other subscribers for the same event still execute. The bus continues processing subsequent events normally.
+
+## Shutdown
+
+When `Shutdown()` is called, the EventBus:
+
+1. Closes the event channel
+2. Drains any remaining events in the buffer
+3. Waits for all in-flight subscriber goroutines to complete

@@ -1,0 +1,115 @@
+<section class="terminal-section">
+  <div class="container">
+    <div class="terminal" id="terminal-demo">
+      <div class="terminal-bar">
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-dot"></span>
+        <span class="terminal-title">~/projects</span>
+      </div>
+      <div class="terminal-body" id="terminal-body">
+        <!-- Lines are injected by terminal-animation.ts -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const LINES = [
+    { type: 'command', html: '<span class="prompt">&#10095;</span> <span class="cmd">devify init</span> <span class="flag">my-saas-app</span>', typeText: '❯ devify init my-saas-app' },
+    { type: 'output', html: '&nbsp; Select database: <span class="success">PostgreSQL (recommended)</span>' },
+    { type: 'output', html: '&nbsp; Include example module? <span class="yellow-text">yes</span>' },
+    { type: 'output', html: '&nbsp; <span class="success">&#10003; Project scaffolded</span>' },
+    { type: 'blank' },
+    { type: 'command', html: '<span class="prompt">&#10095;</span> <span class="cmd">devify module:create</span> <span class="flag">billing</span> <span class="output">--routes --migrations --events</span>', typeText: '❯ devify module:create billing --routes --migrations --events' },
+    { type: 'output', html: '&nbsp; <span class="success">&#10003; Module created at modules/billing/</span>' },
+    { type: 'blank' },
+    { type: 'command', html: '<span class="prompt">&#10095;</span> <span class="cmd">devify migrate</span>', typeText: '❯ devify migrate' },
+    { type: 'output', html: '&nbsp; Running auth migrations... <span class="success">&#10003; 2 applied</span>' },
+    { type: 'output', html: '&nbsp; Running rbac migrations... <span class="success">&#10003; 4 applied</span>' },
+    { type: 'output', html: '&nbsp; Running billing migrations... <span class="success">&#10003; 1 applied</span>' },
+    { type: 'blank' },
+    { type: 'command', html: '<span class="prompt">&#10095;</span> <span class="cmd">devify dev</span>', typeText: '❯ devify dev' },
+    { type: 'output', html: '&nbsp; <span class="success">&#10003; Watching for changes...</span> <span class="output">server running on :4000</span>' },
+  ];
+
+  function runTerminal() {
+    const body = document.getElementById('terminal-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    let lineIndex = 0;
+    let charIndex = 0;
+    let currentDiv: HTMLDivElement | null = null;
+
+    function nextLine() {
+      if (lineIndex >= LINES.length) {
+        // Loop after pause
+        setTimeout(runTerminal, 4000);
+        return;
+      }
+
+      const line = LINES[lineIndex];
+      lineIndex++;
+
+      if (line.type === 'blank') {
+        const spacer = document.createElement('div');
+        spacer.style.height = '12px';
+        body!.appendChild(spacer);
+        setTimeout(nextLine, 300);
+        return;
+      }
+
+      currentDiv = document.createElement('div');
+      currentDiv.className = 'terminal-line';
+      body!.appendChild(currentDiv);
+
+      if (line.type === 'command' && line.typeText) {
+        charIndex = 0;
+        typeCommand(currentDiv, line.typeText, line.html, () => {
+          setTimeout(nextLine, 200);
+        });
+      } else {
+        currentDiv.innerHTML = line.html || '';
+        // Fade in
+        requestAnimationFrame(() => {
+          currentDiv!.classList.add('visible');
+        });
+        setTimeout(nextLine, 150);
+      }
+    }
+
+    function typeCommand(div: HTMLDivElement, text: string, fullHtml: string, done: () => void) {
+      div.classList.add('visible');
+      if (charIndex < text.length) {
+        div.textContent = text.slice(0, charIndex + 1);
+        // Add cursor
+        const cursor = document.createElement('span');
+        cursor.className = 'terminal-cursor';
+        div.appendChild(cursor);
+        charIndex++;
+        setTimeout(() => typeCommand(div, text, fullHtml, done), 35);
+      } else {
+        // Replace with styled HTML
+        div.innerHTML = fullHtml;
+        done();
+      }
+    }
+
+    nextLine();
+  }
+
+  // Start when terminal scrolls into view
+  const terminal = document.getElementById('terminal-demo');
+  if (terminal) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          observer.unobserve(entry.target);
+          runTerminal();
+        }
+      });
+    }, { threshold: 0.3 });
+    observer.observe(terminal);
+  }
+</script>

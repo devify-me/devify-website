@@ -1,0 +1,105 @@
+---
+title: Adapter System
+description: Swappable infrastructure backends that implement kernel interfaces.
+---
+
+Adapters are concrete implementations of kernel interfaces. They live in the `adapters/` directory and are selected via configuration.
+
+## Available Adapters
+
+### Database
+
+| Adapter | Engine | Isolation |
+|---------|--------|-----------|
+| `adapters/database/postgres` | PostgreSQL | Schema per module |
+| `adapters/database/mysql` | MySQL / MariaDB | Table prefix |
+| `adapters/database/sqlite` | SQLite | Table prefix |
+| `adapters/database/mongodb` | MongoDB | Collection prefix |
+
+### Cache
+
+| Adapter | Backend | Use Case |
+|---------|---------|----------|
+| `adapters/cache/redis` | Redis | Production, shared cache |
+| `adapters/cache/badger` | BadgerDB | Embedded, no external dependency |
+| `adapters/cache/memory` | In-memory | Development, testing |
+
+### Mail
+
+| Adapter | Backend |
+|---------|---------|
+| `adapters/mail/smtp` | SMTP with TLS/STARTTLS support |
+
+### Storage
+
+| Adapter | Backend | Features |
+|---------|---------|----------|
+| `adapters/storage/local` | Local filesystem | Path-traversal prevention |
+| `adapters/storage/s3` | AWS S3 | Presigned URLs, custom endpoints (MinIO) |
+
+### Router
+
+| Adapter | Backend |
+|---------|---------|
+| `adapters/router/chi` | Chi HTTP router |
+
+### Renderer
+
+| Adapter | Backend |
+|---------|---------|
+| `adapters/renderer/templ` | Templ (type-safe templates) |
+| `adapters/renderer/gotemplate` | Go standard library templates |
+
+## How Adapters Are Wired
+
+In `cmd/app/main.go`, adapters are created based on configuration and passed to the kernel:
+
+```go
+cfg, _ := kernel.LoadConfig("config/config.toml")
+logger := kernel.NewSlogLogger(cfg.Get("app.log_level"))
+
+// Create adapters based on config
+db, _ := postgres.New(cfg, logger)    // or mysql.New(), sqlite.New()
+router := chi.New()
+cache := redis.New(cfg, logger)       // or memory.New(), badger.New()
+
+// Wire into kernel
+k, _ := kernel.NewKernel("config/config.toml",
+    kernel.WithRouter(router),
+    kernel.WithDatabase(db),
+    kernel.WithCache(cache),
+    kernel.WithLogger(logger),
+)
+```
+
+## Writing a Custom Adapter
+
+To create a custom adapter, implement the relevant kernel interface:
+
+```go
+package myredis
+
+import (
+    "context"
+    "time"
+    "github.com/devify-tools/devify/kernel"
+)
+
+type MyCache struct {
+    // your fields
+}
+
+// Implement kernel.Cache
+func (c *MyCache) Get(ctx context.Context, key string) ([]byte, error) { /* ... */ }
+func (c *MyCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error { /* ... */ }
+func (c *MyCache) Delete(ctx context.Context, key string) error { /* ... */ }
+func (c *MyCache) Exists(ctx context.Context, key string) (bool, error) { /* ... */ }
+func (c *MyCache) Close() error { /* ... */ }
+```
+
+Then wire it in `cmd/app/main.go`:
+
+```go
+cache := myredis.New(cfg, logger)
+k, _ := kernel.NewKernel(configPath, kernel.WithCache(cache))
+```

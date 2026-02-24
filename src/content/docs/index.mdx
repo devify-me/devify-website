@@ -1,0 +1,36 @@
+---
+title: Devify Documentation
+description: Comprehensive documentation for the Devify modular-monolithic Go framework.
+template: splash
+hero:
+  title: Devify Documentation
+  tagline: Everything you need to build modular Go applications that deploy as a single binary.
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+    - text: Architecture
+      link: /architecture/overview/
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Getting Started" icon="rocket">
+    Install the CLI, create your first project, and understand the directory structure.
+    [Start here →](/getting-started/installation/)
+  </Card>
+  <Card title="Architecture" icon="puzzle">
+    Learn about the kernel, modules, adapters, and the strict dependency flow that keeps your code clean.
+    [Read more →](/architecture/overview/)
+  </Card>
+  <Card title="Module Development" icon="add-document">
+    Create custom modules with routes, services, migrations, events, and middleware.
+    [Build a module →](/module-development/creating-a-module/)
+  </Card>
+  <Card title="CLI Reference" icon="setting">
+    All 18+ commands at your fingertips — from scaffolding to deployment.
+    [See commands →](/cli-reference/)
+  </Card>
+</CardGrid>

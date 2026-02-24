@@ -1,0 +1,60 @@
+---
+title: Module Configuration
+description: Typed per-module configuration using TOML sections.
+---
+
+Each module can declare a typed configuration struct that the kernel populates from the `[modules.<name>]` TOML section.
+
+## Declaring Config
+
+Implement the `HasConfig` interface:
+
+```go
+type Config struct {
+    DefaultCurrency string  `toml:"default_currency"`
+    TaxRate         float64 `toml:"tax_rate"`
+    WebhookURL      string  `toml:"webhook_url"`
+}
+
+func (m *Module) DefaultConfig() any {
+    return &Config{
+        DefaultCurrency: "USD",
+        TaxRate:         0.0,
+    }
+}
+```
+
+## TOML Section
+
+```toml
+[modules.billing]
+default_currency = "EUR"
+tax_rate = 0.21
+webhook_url = "https://example.com/webhook"
+```
+
+## Accessing Config
+
+During `Init()`, register and access the config:
+
+```go
+func (m *Module) Init(k *kernel.Kernel) error {
+    var cfg Config
+    if err := k.Config().RegisterModuleConfig("billing", &cfg); err != nil {
+        return fmt.Errorf("loading billing config: %w", err)
+    }
+
+    m.config = cfg
+    // Use cfg.DefaultCurrency, cfg.TaxRate, etc.
+    return nil
+}
+```
+
+## Environment Variable Overrides
+
+Module config values can be overridden with environment variables:
+
+```bash
+export DEVIFY_MODULES_BILLING_DEFAULT__CURRENCY=GBP
+export DEVIFY_MODULES_BILLING_TAX__RATE=0.20
+```

@@ -1,0 +1,63 @@
+---
+title: PostgreSQL
+description: PostgreSQL configuration, schema isolation, and best practices.
+---
+
+PostgreSQL is the recommended database engine for Devify. It uses **schema-per-module isolation** — each module gets its own PostgreSQL schema.
+
+## Configuration
+
+```toml
+[database]
+engine = "postgres"
+host = "localhost"
+port = 5432
+name = "my_app_dev"
+user = "postgres"
+password = ""
+ssl_mode = "disable"
+max_open_conns = 25
+max_idle_conns = 5
+conn_max_lifetime = "5m"
+```
+
+## Schema Isolation
+
+Each module operates in its own schema:
+
+- `auth.users`, `auth.password_resets`
+- `rbac.roles`, `rbac.permissions`, `rbac.role_permissions`, `rbac.user_roles`
+- `billing.invoices`, `billing.payments`
+
+Schemas are created automatically when migrations run. The kernel calls `EnsureSchema()` before executing module migrations.
+
+## Migration Tracking
+
+Applied migrations are recorded in the `devify.migrations` table:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | SERIAL | Auto-increment ID |
+| module | VARCHAR | Module name |
+| version | VARCHAR | Migration version |
+| description | VARCHAR | Migration description |
+| applied_at | TIMESTAMPTZ | When the migration ran |
+
+## Connection Pooling
+
+Configure pool settings based on your deployment:
+
+| Setting | Development | Production |
+|---------|------------|------------|
+| max_open_conns | 5 | 25-50 |
+| max_idle_conns | 2 | 10 |
+| conn_max_lifetime | 1m | 5m |
+
+## SSL Modes
+
+| Mode | Description |
+|------|-------------|
+| `disable` | No SSL (development only) |
+| `require` | SSL required, no certificate verification |
+| `verify-ca` | SSL required, verify CA |
+| `verify-full` | SSL required, verify CA and hostname |

@@ -1,0 +1,80 @@
+---
+title: Events
+description: Define event types and subscribe to events from other modules.
+---
+
+## Defining Event Types
+
+In `events/types.go`, define constants and payload structs:
+
+```go
+package events
+
+const (
+    InvoiceCreated = "billing.invoice_created"
+    PaymentReceived = "billing.payment_received"
+)
+
+type InvoicePayload struct {
+    InvoiceID  uuid.UUID
+    CustomerID uuid.UUID
+    Amount     int64
+}
+```
+
+## Emitting Events
+
+Emit events from your service layer:
+
+```go
+func (s *billingService) ProcessPayment(ctx context.Context, invoiceID uuid.UUID) error {
+    // Process the payment...
+
+    s.eventBus.Emit(kernel.Event{
+        Name:    events.PaymentReceived,
+        Payload: &events.InvoicePayload{
+            InvoiceID: invoiceID,
+            CustomerID: invoice.CustomerID,
+            Amount: invoice.Amount,
+        },
+    })
+
+    return nil
+}
+```
+
+## Subscribing to Events
+
+Implement `HasEvents` and subscribe in `RegisterEvents()`:
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("auth.user_registered", m.subscribers.OnUserRegistered)
+}
+```
+
+In `events/subscribers.go`:
+
+```go
+type Subscribers struct {
+    service service.BillingService
+    logger  kernel.Logger
+}
+
+func (s *Subscribers) OnUserRegistered(e kernel.Event) error {
+    user := e.Payload.(*auth.User)
+    s.logger.Info("creating trial for new user", "user_id", user.ID)
+    return s.service.CreateTrialSubscription(context.Background(), user.ID)
+}
+```
+
+## Event Naming Convention
+
+Use the pattern `<module>.<event_name>`:
+
+- `auth.user_registered`
+- `auth.user_logged_in`
+- `billing.invoice_created`
+- `billing.payment_received`
+
+This namespacing prevents collisions between modules.

@@ -1,0 +1,74 @@
+---
+title: Architecture Overview
+description: Understand Devify's modular-monolith architecture and core principles.
+---
+
+## What is a Modular Monolith?
+
+A modular monolith combines the best of both worlds:
+
+- **Monolith deployment**: Single binary, no network overhead, no service mesh
+- **Modular internals**: Clean boundaries, independent features, testable isolation
+
+Unlike microservices, you don't need container orchestration. Unlike a traditional monolith, your code doesn't devolve into spaghetti. Devify enforces this architecture at compile time.
+
+## Core Principles
+
+### 1. Modular Boundaries
+
+Every feature lives in a self-contained module. Modules never import each other's internal packages. This is enforced by Go's package system and validated at boot by the kernel's dependency resolver.
+
+### 2. Interface-Driven Design
+
+The kernel defines contracts through Go interfaces. Modules and adapters implement them. Concrete types are hidden behind interfaces, making every infrastructure concern swappable.
+
+### 3. Explicit Dependency Injection
+
+Modules declare dependencies explicitly via `Dependencies() []string`. The kernel resolves them using topological sort and injects them during initialization. No globals, no hidden coupling.
+
+### 4. Single Binary Deploy
+
+Everything compiles to one Go binary. `go build ./cmd/app/` produces a single executable that includes all modules, adapters, and static assets.
+
+### 5. Database Agnostic
+
+The kernel's `DatabaseProvider` interface supports PostgreSQL, MySQL/MariaDB, MongoDB, and SQLite. Module database isolation adapts automatically — schemas for Postgres, table prefixes for MySQL/SQLite, collection prefixes for MongoDB.
+
+## The Dependency Flow
+
+```
+cmd/ → kernel/ ← modules/ ← adapters/
+```
+
+This is the fundamental constraint. The arrow direction is strict:
+
+- `cmd/` depends on everything (it's the wiring layer)
+- `kernel/` depends on nothing (it defines interfaces)
+- `modules/` depend only on `kernel/` interfaces
+- `adapters/` depend only on `kernel/` interfaces
+
+## Boot Sequence
+
+When your application starts, the kernel follows this sequence:
+
+1. Load TOML config with environment variable overrides
+2. Create infrastructure adapters (Router, Database, Cache)
+3. Create the Kernel with adapters
+4. Register modules (auth, rbac, your modules)
+5. Call `Boot()` which:
+   - Topologically sorts modules by declared dependencies
+   - Detects dependency cycles (fails fast if found)
+   - Initializes each module in order
+   - Runs migrations for each module
+   - Wires event subscriptions
+   - Registers HTTP routes
+6. Start the HTTP server
+7. Wait for SIGINT/SIGTERM
+8. Shutdown in reverse order (graceful)
+
+## Next Steps
+
+- [Kernel interfaces](/architecture/kernel-interfaces/) — the 9 core abstractions
+- [Module system](/architecture/modules/) — how modules work
+- [Adapter system](/architecture/adapters/) — swappable backends
+- [EventBus](/architecture/eventbus/) — async communication

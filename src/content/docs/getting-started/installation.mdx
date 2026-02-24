@@ -1,0 +1,73 @@
+---
+title: Installation
+description: Install the Devify CLI and set up your development environment.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+- **Go 1.22+** — [Download Go](https://go.dev/dl/)
+- **A database engine** — PostgreSQL (recommended), MySQL, SQLite, or MongoDB
+- **Git** — for version control
+
+## Install the CLI
+
+<Steps>
+
+1. Install the Devify CLI using `go install`:
+
+   ```bash
+   go install github.com/devify-tools/devify/cmd/cli@latest
+   ```
+
+2. Verify the installation:
+
+   ```bash
+   devify version
+   # devify v0.1.0 — modular-monolithic Go framework CLI
+   ```
+
+3. The `devify` command is now available globally.
+
+</Steps>
+
+## Database Setup
+
+<Tabs>
+  <TabItem label="PostgreSQL" icon="seti:db">
+    ```bash
+    # macOS
+    brew install postgresql@16
+    brew services start postgresql@16
+
+    # Create a database for your project
+    createdb my_app_dev
+    ```
+  </TabItem>
+  <TabItem label="MySQL">
+    ```bash
+    # macOS
+    brew install mysql
+    brew services start mysql
+
+    # Create a database
+    mysql -u root -e "CREATE DATABASE my_app_dev;"
+    ```
+  </TabItem>
+  <TabItem label="SQLite">
+    No setup needed — SQLite uses a local file. Devify creates it automatically.
+  </TabItem>
+  <TabItem label="MongoDB">
+    ```bash
+    # macOS
+    brew tap mongodb/brew
+    brew install mongodb-community
+    brew services start mongodb-community
+    ```
+  </TabItem>
+</Tabs>
+
+## Next Steps
+
+You're ready to [create your first project](/getting-started/quick-start/).

@@ -1,0 +1,68 @@
+---
+title: Repositories
+description: Database access layer with engine-specific implementations.
+---
+
+## Repository Interface
+
+Define a clean interface in `repository/interface.go`:
+
+```go
+package repository
+
+type BillingRepository interface {
+    Create(ctx context.Context, invoice *Invoice) error
+    FindByID(ctx context.Context, id uuid.UUID) (*Invoice, error)
+    List(ctx context.Context) ([]Invoice, error)
+    UpdateStatus(ctx context.Context, id uuid.UUID, status string) error
+}
+```
+
+## PostgreSQL Implementation
+
+```go
+package repository
+
+type postgresRepo struct {
+    db *sql.DB
+}
+
+func NewPostgres(db *sql.DB) BillingRepository {
+    return &postgresRepo{db: db}
+}
+
+func (r *postgresRepo) Create(ctx context.Context, invoice *Invoice) error {
+    _, err := r.db.ExecContext(ctx,
+        "INSERT INTO billing.invoices (id, customer_id, amount, status, created_at) VALUES ($1, $2, $3, $4, $5)",
+        invoice.ID, invoice.CustomerID, invoice.Amount, invoice.Status, invoice.CreatedAt,
+    )
+    return err
+}
+
+func (r *postgresRepo) FindByID(ctx context.Context, id uuid.UUID) (*Invoice, error) {
+    var inv Invoice
+    err := r.db.QueryRowContext(ctx,
+        "SELECT id, customer_id, amount, status, created_at FROM billing.invoices WHERE id = $1", id,
+    ).Scan(&inv.ID, &inv.CustomerID, &inv.Amount, &inv.Status, &inv.CreatedAt)
+    if err == sql.ErrNoRows {
+        return nil, ErrNotFound
+    }
+    return &inv, err
+}
+```
+
+## Module Isolation
+
+Each database engine handles module isolation differently:
+
+- **PostgreSQL**: Uses schemas (`billing.invoices`)
+- **MySQL/MariaDB**: Uses table prefixes (`billing_invoices`)
+- **SQLite**: Uses table prefixes (`billing_invoices`)
+- **MongoDB**: Uses collection prefixes (`billing_invoices`)
+
+The kernel's `EnsureSchema()` method creates the module's schema during migration:
+
+```go
+// Called automatically during migration execution
+k.Database().EnsureSchema(ctx, "billing")
+```

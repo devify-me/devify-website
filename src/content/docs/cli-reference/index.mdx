@@ -1,0 +1,189 @@
+---
+title: CLI Reference
+description: Complete reference for all Devify CLI commands.
+---
+
+The Devify CLI provides 18 built-in commands organized into 6 categories, plus dynamic module commands.
+
+## Project Lifecycle
+
+### devify init \<name\>
+
+Scaffold a new Devify project.
+
+```bash
+devify init my-app
+```
+
+Interactive prompts for database engine selection and optional example module. Creates the full project structure with config, modules, and adapters.
+
+### devify build
+
+Build the application binary.
+
+```bash
+devify build
+```
+
+Runs `templ generate` (if Templ templates exist) followed by `go build ./cmd/app/`. Produces a single binary.
+
+### devify dev
+
+Start the development server with hot reload.
+
+```bash
+devify dev
+```
+
+Wraps Air for automatic rebuilding on file changes. Watches `.go`, `.templ`, and `.toml` files.
+
+### devify run
+
+Run the compiled binary in production mode.
+
+```bash
+devify run
+```
+
+## Module Management
+
+### devify module:create \<name\>
+
+Scaffold a new module.
+
+```bash
+devify module:create billing
+devify module:create billing --routes --migrations --events --config
+```
+
+Interactive mode asks which capabilities to include. Flag mode skips prompts.
+
+### devify module:list
+
+List all registered modules with their dependencies and capabilities.
+
+```bash
+devify module:list
+```
+
+### devify module:remove \<name\>
+
+Remove a module. Validates that no other modules depend on it before removal.
+
+```bash
+devify module:remove billing
+```
+
+## Database & Migrations
+
+### devify migrate
+
+Run all pending migrations in dependency order.
+
+```bash
+devify migrate
+```
+
+### devify migrate:create \<module\> \<name\>
+
+Create a new migration file for a module.
+
+```bash
+devify migrate:create billing create_invoices
+```
+
+### devify migrate:rollback \<module\>
+
+Rollback the last migration batch for a module.
+
+```bash
+devify migrate:rollback billing
+```
+
+### devify migrate:status
+
+Show migration status for all modules.
+
+```bash
+devify migrate:status
+```
+
+## Code Generation
+
+### devify gen:handler \<module\> \<name\>
+
+Generate a handler stub.
+
+```bash
+devify gen:handler billing create-invoice
+```
+
+### devify gen:service \<module\> \<name\>
+
+Generate a service interface and implementation.
+
+```bash
+devify gen:service billing payment
+```
+
+### devify gen:repository \<module\> \<name\>
+
+Generate a repository interface and implementation.
+
+```bash
+devify gen:repository billing invoice
+```
+
+### devify gen:event \<module\> \<name\>
+
+Generate an event type and subscriber.
+
+```bash
+devify gen:event billing payment-received
+```
+
+## Configuration
+
+### devify config:validate
+
+Validate all configuration files and module config structs.
+
+```bash
+devify config:validate
+```
+
+### devify config:dump
+
+Dump the resolved configuration (TOML + env overrides).
+
+```bash
+devify config:dump
+```
+
+## Module Commands
+
+Modules can register their own CLI commands via the `HasCommands` interface:
+
+```bash
+devify <module>:<command> [args]
+```
+
+Examples:
+
+```bash
+devify auth:create-admin admin@example.com password123
+devify auth:list-users
+devify rbac:assign-role admin@example.com admin
+devify rbac:list-roles
+```
+
+## Utility
+
+### devify version
+
+Print the CLI version.
+
+```bash
+devify version
+# devify v0.1.0 — modular-monolithic Go framework CLI
+```

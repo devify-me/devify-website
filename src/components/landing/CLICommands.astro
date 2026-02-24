@@ -1,0 +1,42 @@
+<section class="section" id="cli">
+  <div class="container">
+    <div class="section-label reveal">Developer Experience</div>
+    <h2 class="section-title reveal">One CLI to rule them all.</h2>
+    <p class="section-sub reveal">Every action you need &mdash; from scaffolding to deployment &mdash; lives in the devify command. Consistent, discoverable, automatable.</p>
+
+    <div class="cli-grid reveal-stagger">
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify init &lt;app&gt;</div>
+        <div class="cli-desc">Scaffold a new project with database selection and config</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify module:create &lt;name&gt;</div>
+        <div class="cli-desc">Generate a new module with selected capabilities</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify migrate</div>
+        <div class="cli-desc">Run all pending migrations in dependency order</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify dev</div>
+        <div class="cli-desc">Hot-reload dev server &mdash; watches Go, Templ, and TOML</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify gen:service &lt;mod&gt; &lt;name&gt;</div>
+        <div class="cli-desc">Generate service interface + implementation stub</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify config:validate</div>
+        <div class="cli-desc">Validate all config and module structs &mdash; CI-ready</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify build</div>
+        <div class="cli-desc">Templ generate &rarr; go build. One command, one binary.</div>
+      </div>
+      <div class="cli-item reveal">
+        <div class="cli-cmd">devify &lt;mod&gt;:&lt;cmd&gt;</div>
+        <div class="cli-desc">Run module-registered commands (e.g., auth:create-admin)</div>
+      </div>
+    </div>
+  </div>
+</section>

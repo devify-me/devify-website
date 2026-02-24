@@ -1,0 +1,152 @@
+---
+title: Kernel Interfaces
+description: The 9 core interfaces that define Devify's infrastructure contracts.
+---
+
+The kernel provides 9 core interfaces. Every infrastructure concern is abstracted — modules never depend on concrete implementations.
+
+## Router
+
+HTTP router abstraction. Modules receive scoped sub-routers via `Group`.
+
+```go
+type Router interface {
+    Mount(pattern string, handler http.Handler)
+    Group(pattern string, fn func(r Router))
+    Use(middlewares ...func(http.Handler) http.Handler)
+    Handle(method string, pattern string, handler http.HandlerFunc)
+    ServeHTTP(w http.ResponseWriter, r *http.Request)
+}
+```
+
+The default adapter uses [Chi](https://github.com/go-chi/chi).
+
+## Logger
+
+Structured logging with key-value pairs following the `log/slog` convention.
+
+```go
+type Logger interface {
+    Info(msg string, args ...any)
+    Error(msg string, args ...any)
+    Debug(msg string, args ...any)
+    Warn(msg string, args ...any)
+    WithFields(args ...any) Logger
+}
+```
+
+## Config
+
+Typed configuration from TOML files with environment variable overrides.
+
+```go
+type Config interface {
+    Get(key string) string
+    GetInt(key string) int
+    GetBool(key string) bool
+    GetDuration(key string) time.Duration
+    RegisterModuleConfig(module string, target any) error
+}
+```
+
+## DatabaseProvider
+
+Database access with module isolation. Supports 4 engines.
+
+```go
+type DatabaseProvider interface {
+    DB() *sql.DB
+    RunMigrations(ctx context.Context, module string, migrations []Migration) error
+    RollbackMigrations(ctx context.Context, module string, migrations []Migration) error
+    MigrationStatus(ctx context.Context, module string, migrations []Migration) ([]MigrationStatus, error)
+    EnsureSchema(ctx context.Context, schema string) error
+    Close() error
+}
+```
+
+| Database | Isolation Strategy |
+|----------|-------------------|
+| PostgreSQL | Schema per module (`auth.users`) |
+| MySQL/MariaDB | Table prefix (`auth_users`) |
+| SQLite | Table prefix (`auth_users`) |
+| MongoDB | Collection prefix (`auth_users`) |
+
+## Cache
+
+Key-value cache with TTL support. Three adapters available.
+
+```go
+type Cache interface {
+    Get(ctx context.Context, key string) ([]byte, error)
+    Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+    Delete(ctx context.Context, key string) error
+    Exists(ctx context.Context, key string) (bool, error)
+    Close() error
+}
+```
+
+Adapters: Redis, BadgerDB (embedded), in-memory.
+
+## Mailer
+
+Email sending abstraction.
+
+```go
+type Mailer interface {
+    Send(msg MailMessage) error
+}
+```
+
+Adapters: SMTP (with TLS/STARTTLS), AWS SES.
+
+## Storage
+
+File storage abstraction with upload, download, and deletion.
+
+```go
+type Storage interface {
+    Put(ctx context.Context, path string, r io.Reader) error
+    Get(ctx context.Context, path string) (io.ReadCloser, error)
+    Delete(ctx context.Context, path string) error
+    Exists(ctx context.Context, path string) (bool, error)
+    URL(ctx context.Context, path string) (string, error)
+}
+```
+
+Adapters: local filesystem, AWS S3.
+
+## EventBus
+
+Channel-based async pub/sub built on Go's concurrency primitives.
+
+```go
+type EventBus interface {
+    Emit(event Event)
+    EmitSync(event Event)
+    Subscribe(eventName string, handler func(Event) error)
+    Shutdown()
+}
+```
+
+See the dedicated [EventBus page](/architecture/eventbus/) for details.
+
+## Scheduler
+
+Cron-like task scheduling.
+
+```go
+type Scheduler interface {
+    Schedule(name string, spec string, fn func(context.Context) error)
+    Start()
+    Stop()
+}
+```
+
+## Lifecycle Hooks
+
+The kernel manages module lifecycle through 4 phases:
+
+1. **OnRegister** — module declares identity, dependencies, config, and capabilities
+2. **OnInit** — infrastructure is booted, dependencies are resolved, module sets up internal state
+3. **OnReady** — all modules are initialized, safe for cross-module interactions
+4. **OnShutdown** — graceful teardown in reverse initialization order

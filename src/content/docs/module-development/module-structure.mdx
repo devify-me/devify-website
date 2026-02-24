@@ -1,0 +1,73 @@
+---
+title: Module Structure
+description: The anatomy of a Devify module directory.
+---
+
+## Directory Layout
+
+Every module follows a consistent internal structure:
+
+```
+modules/<name>/
+├── module/
+│   └── module.go          # Module interface + Init/Shutdown
+├── config.go              # Typed config struct with toml tags
+├── handlers/
+│   ├── handler.go         # Base handler struct with shared deps
+│   ├── create.go          # Individual handler methods
+│   └── list.go
+├── service/
+│   ├── interface.go       # Exported service interface
+│   └── <name>_service.go  # Implementation
+├── repository/
+│   ├── interface.go       # Repository interface
+│   └── postgres.go        # Database-specific implementation
+├── migrations/
+│   └── migrations.go      # Go function migrations
+├── events/
+│   ├── types.go           # Event type constants + payload structs
+│   └── subscribers.go     # Event handlers
+├── middleware/
+│   └── auth_check.go      # Module-specific middleware
+├── commands/
+│   └── commands.go        # CLI subcommands
+└── views/
+    └── templates           # Templ templates
+```
+
+## File Responsibilities
+
+### module/module.go
+
+The central file that implements `kernel.Module` and all optional capability interfaces. It coordinates initialization, holds references to the service and repository, and wires everything together.
+
+### config.go
+
+A typed Go struct with `toml` struct tags. The kernel populates it from the `[modules.<name>]` section of `config.toml`.
+
+```go
+type Config struct {
+    DefaultCurrency string  `toml:"default_currency"`
+    TaxRate         float64 `toml:"tax_rate"`
+}
+```
+
+### handlers/
+
+HTTP handlers organized by operation. A base `Handler` struct holds shared dependencies (service, logger) injected during module init.
+
+### service/
+
+Business logic separated from HTTP concerns. The `interface.go` file defines the public API that other modules can depend on via DI. The implementation file contains the actual logic.
+
+### repository/
+
+Database access layer. The interface defines operations, and implementation files are specific to database engines. Modules use `k.Database()` for database access.
+
+### migrations/
+
+Go functions that define database schema changes. Each migration has an `Up` and `Down` function.
+
+### events/
+
+Event type definitions and subscriber handlers. Types define event name constants and payload structs. Subscribers react to events from this or other modules.

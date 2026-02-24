@@ -1,0 +1,100 @@
+---
+title: Auth Module
+description: Built-in authentication module — identity, registration, login, and password management.
+---
+
+The auth module owns identity management. It handles user registration, login, logout, and password reset. Authorization (roles/permissions) belongs to the [RBAC module](/built-in-modules/rbac/).
+
+## Features
+
+- User registration with email + password
+- Login / logout
+- Password reset flow
+- Two authentication strategies: Session (SCS) or JWT
+- Two password hashing options: argon2id (default, OWASP recommended) or bcrypt
+- Exported `UserService` interface for DI
+- 4 events emitted for other modules to react to
+
+## Configuration
+
+```toml
+[modules.auth]
+strategy = "jwt"           # "jwt" or "session"
+hasher = "argon2id"        # "argon2id" or "bcrypt"
+session_ttl = "24h"
+min_password_length = 8
+jwt_secret = "your-secret-key"
+jwt_expiry = "1h"
+```
+
+## HTTP Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/auth/register` | Register a new user |
+| POST | `/auth/login` | Authenticate and get token/session |
+| POST | `/auth/logout` | End session / invalidate token |
+| POST | `/auth/password-reset` | Request password reset |
+
+## UserService Interface
+
+Exported for other modules via DI as `auth.user_service`:
+
+```go
+type UserService interface {
+    Register(ctx context.Context, email, password string) (*User, error)
+    Authenticate(ctx context.Context, email, password string) (*User, error)
+    FindByID(ctx context.Context, id uuid.UUID) (*User, error)
+    FindByEmail(ctx context.Context, email string) (*User, error)
+}
+```
+
+## Authentication Strategies
+
+### JWT Strategy
+
+Stateless authentication using JSON Web Tokens. Best for APIs.
+
+- Token returned in response body on login
+- Client sends `Authorization: Bearer <token>` header
+- No server-side session storage needed
+
+### Session Strategy
+
+Server-side sessions using SCS. Best for server-rendered apps.
+
+- Session cookie set on login
+- Server stores session data
+- Automatic expiry based on `session_ttl`
+
+## Events
+
+| Event Name | Payload | When |
+|-----------|---------|------|
+| `auth.user_registered` | `*User` | After successful registration |
+| `auth.user_logged_in` | `*User` | After successful login |
+| `auth.user_logged_out` | `*User` | After logout |
+| `auth.password_reset` | `*User` | After password reset |
+
+## Middleware
+
+- **RequireAuth** — verifies JWT token or session, injects user ID into request context
+- **RequireGuest** — ensures the user is NOT authenticated
+
+```go
+authmw.RequireAuth(strategy, userService)
+```
+
+## CLI Commands
+
+```bash
+devify auth:create-admin <email> <password>
+devify auth:list-users
+```
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `auth.users` | id, email, password_hash, created_at, updated_at |
+| `auth.password_resets` | id, user_id, token, expires_at, created_at |

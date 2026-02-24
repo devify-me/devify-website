@@ -1,0 +1,97 @@
+---
+title: Config File
+description: The TOML configuration file structure and all available settings.
+---
+
+Devify uses TOML for configuration. The main config file is at `config/config.toml`.
+
+## Full Configuration Reference
+
+```toml
+[app]
+name = "my-app"
+env = "development"       # development, staging, production
+log_level = "info"        # debug, info, warn, error
+
+[server]
+host = "0.0.0.0"
+port = 4000
+
+[database]
+engine = "postgres"       # postgres, mysql, sqlite, mongodb
+host = "localhost"
+port = 5432
+name = "my_app_dev"
+user = "postgres"
+password = ""
+ssl_mode = "disable"      # disable, require, verify-ca, verify-full
+max_open_conns = 25
+max_idle_conns = 5
+conn_max_lifetime = "5m"
+
+[cache]
+engine = "memory"         # memory, redis, badger
+
+[mail]
+engine = "smtp"
+host = "localhost"
+port = 1025
+from = "noreply@example.com"
+
+[storage]
+engine = "local"          # local, s3
+local_root = "./uploads"
+
+[renderer]
+engine = "templ"          # templ, gotemplate
+
+[events]
+buffer_size = 256
+
+[scheduler]
+enabled = true
+
+# Per-module configuration
+[modules.auth]
+strategy = "jwt"
+hasher = "argon2id"
+session_ttl = "24h"
+min_password_length = 8
+jwt_secret = "change-me-in-production"
+jwt_expiry = "1h"
+
+[modules.rbac]
+default_role = "user"
+```
+
+## Section Reference
+
+### [app]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| name | string | — | Application name |
+| env | string | development | Environment (development/staging/production) |
+| log_level | string | info | Log verbosity (debug/info/warn/error) |
+
+### [server]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| host | string | 0.0.0.0 | Bind address |
+| port | int | 4000 | Listen port |
+
+### [database]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| engine | string | — | Database engine (postgres/mysql/sqlite/mongodb) |
+| host | string | localhost | Database host |
+| port | int | 5432 | Database port |
+| name | string | — | Database name |
+| user | string | — | Database user |
+| password | string | — | Database password |
+| ssl_mode | string | disable | SSL mode |
+| max_open_conns | int | 25 | Maximum open connections |
+| max_idle_conns | int | 5 | Maximum idle connections |
+| conn_max_lifetime | duration | 5m | Maximum connection lifetime |

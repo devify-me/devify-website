@@ -1,0 +1,36 @@
+<section class="section" id="architecture">
+  <div class="container">
+    <div class="section-label reveal">Architecture</div>
+    <h2 class="section-title reveal">Clean layers.<br />Strict boundaries.</h2>
+    <p class="section-sub reveal">The dependency arrow only flows one direction. Modules never import each other's internals. The kernel never imports modules. This isn't a suggestion &mdash; it's enforced.</p>
+
+    <div class="arch-diagram reveal">
+      <div class="arch-layers">
+        <div class="arch-layer">
+          <span class="arch-layer-tag cmd">cmd/</span>
+          <span class="arch-layer-name">Entry Points</span>
+          <span class="arch-layer-desc">Main binary + CLI. Wires kernel, modules, and adapters together at boot.</span>
+        </div>
+        <div class="arch-arrow">&darr; depends on</div>
+        <div class="arch-layer">
+          <span class="arch-layer-tag kernel">kernel/</span>
+          <span class="arch-layer-name">Shared Kernel</span>
+          <span class="arch-layer-desc">Interfaces, lifecycle, config, EventBus, dependency resolver. The stable core.</span>
+        </div>
+        <div class="arch-arrow">&uarr; implements</div>
+        <div class="arch-row">
+          <div class="arch-layer">
+            <span class="arch-layer-tag modules">modules/</span>
+            <span class="arch-layer-name">Feature Modules</span>
+            <span class="arch-layer-desc">auth, rbac, billing &mdash; self-contained features.</span>
+          </div>
+          <div class="arch-layer">
+            <span class="arch-layer-tag adapters">adapters/</span>
+            <span class="arch-layer-name">Adapters</span>
+            <span class="arch-layer-desc">Postgres, Redis, S3, SMTP &mdash; swappable backends.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

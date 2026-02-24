@@ -1,0 +1,91 @@
+---
+title: RBAC Module
+description: Built-in role-based access control — roles, permissions, and authorization middleware.
+---
+
+The RBAC module manages roles, permissions, and authorization. It depends on the [auth module](/built-in-modules/auth/) via dependency injection.
+
+## Features
+
+- Role and permission management
+- User-role assignment
+- RequireRole / RequirePermission middleware
+- Auto-assigns default role on user registration (via EventBus)
+- Exported `RBACService` interface for DI
+
+## Configuration
+
+```toml
+[modules.rbac]
+default_role = "user"
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"}
+}
+```
+
+The RBAC module uses `auth.UserService` to look up users when assigning roles.
+
+## RBACService Interface
+
+Exported as `rbac.service`:
+
+```go
+type RBACService interface {
+    CreateRole(ctx context.Context, name, description string) (*Role, error)
+    ListRoles(ctx context.Context) ([]Role, error)
+    FindRoleByName(ctx context.Context, name string) (*Role, error)
+    CreatePermission(ctx context.Context, name, description string) (*Permission, error)
+    ListPermissions(ctx context.Context) ([]Permission, error)
+    AssignPermissionToRole(ctx context.Context, roleID, permID uuid.UUID) error
+    RemovePermissionFromRole(ctx context.Context, roleID, permID uuid.UUID) error
+    AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error
+    RevokeRoleFromUser(ctx context.Context, userID, roleID uuid.UUID) error
+    GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
+    UserHasRole(ctx context.Context, userID uuid.UUID, roleName string) (bool, error)
+    UserHasPermission(ctx context.Context, userID uuid.UUID, permName string) (bool, error)
+}
+```
+
+## Event Subscriptions
+
+The RBAC module subscribes to `auth.user_registered` and automatically assigns the configured default role to new users:
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("auth.user_registered", func(e kernel.Event) error {
+        user := e.Payload.(*auth.User)
+        return m.rbacService.AssignDefaultRole(context.Background(), user.ID)
+    })
+}
+```
+
+## Middleware
+
+```go
+// Require a specific role
+rbacmw.RequireRole(rbacService, "admin")
+
+// Require a specific permission (through any role)
+rbacmw.RequirePermission(rbacService, "admin:read")
+```
+
+## CLI Commands
+
+```bash
+devify rbac:assign-role <email> <role>
+devify rbac:list-roles
+```
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `rbac.roles` | id, name, description, created_at |
+| `rbac.permissions` | id, name, description, created_at |
+| `rbac.role_permissions` | role_id, permission_id |
+| `rbac.user_roles` | user_id, role_id, assigned_at |

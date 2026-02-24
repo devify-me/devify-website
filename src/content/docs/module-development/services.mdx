@@ -1,0 +1,92 @@
+---
+title: Services
+description: Business logic layer with exported interfaces for cross-module DI.
+---
+
+## Service Interface Pattern
+
+Every service defines a public interface in `service/interface.go`:
+
+```go
+package service
+
+type BillingService interface {
+    CreateInvoice(ctx context.Context, customerID uuid.UUID, amount int64) (*Invoice, error)
+    GetInvoice(ctx context.Context, id uuid.UUID) (*Invoice, error)
+    ListInvoices(ctx context.Context) ([]Invoice, error)
+    ProcessPayment(ctx context.Context, invoiceID uuid.UUID) error
+}
+```
+
+This interface is the public API other modules can depend on via DI.
+
+## Implementation
+
+The implementation lives in `service/billing_service.go`:
+
+```go
+package service
+
+type billingService struct {
+    repo     repository.BillingRepository
+    eventBus kernel.EventBus
+    logger   kernel.Logger
+}
+
+func New(repo repository.BillingRepository, bus kernel.EventBus, logger kernel.Logger) BillingService {
+    return &billingService{repo: repo, eventBus: bus, logger: logger}
+}
+
+func (s *billingService) CreateInvoice(ctx context.Context, customerID uuid.UUID, amount int64) (*Invoice, error) {
+    invoice := &Invoice{
+        ID:         uuid.New(),
+        CustomerID: customerID,
+        Amount:     amount,
+        Status:     "pending",
+        CreatedAt:  time.Now(),
+    }
+
+    if err := s.repo.Create(ctx, invoice); err != nil {
+        return nil, fmt.Errorf("creating invoice: %w", err)
+    }
+
+    s.eventBus.Emit(kernel.Event{
+        Name:    "billing.invoice_created",
+        Payload: invoice,
+    })
+
+    return invoice, nil
+}
+```
+
+## Exporting via DI
+
+In your module's `Init()`, register the service with the kernel:
+
+```go
+func (m *Module) Init(k *kernel.Kernel) error {
+    repo := repository.NewPostgres(k.Database().DB())
+    m.service = service.New(repo, k.EventBus(), k.Logger())
+
+    // Export for other modules
+    k.RegisterService("billing.service", m.service)
+    return nil
+}
+```
+
+## Consuming Another Module's Service
+
+```go
+func (m *Module) Init(k *kernel.Kernel) error {
+    // Get auth service via DI
+    svc, ok := k.Service("auth.user_service")
+    if !ok {
+        return fmt.Errorf("auth.user_service not found")
+    }
+    m.userService = svc.(authservice.UserService)
+
+    // Use it in your service
+    m.service = service.New(repo, m.userService, k.Logger())
+    return nil
+}
+```

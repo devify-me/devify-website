@@ -1,0 +1,90 @@
+---
+title: Quick Start
+description: Create your first Devify project in under 5 minutes.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+<Steps>
+
+1. **Create a new project**
+
+   ```bash
+   devify init my-app
+   ```
+
+   The CLI will ask you to select a database engine (PostgreSQL is recommended) and whether to include an example module.
+
+2. **Navigate into your project**
+
+   ```bash
+   cd my-app
+   ```
+
+3. **Configure your database**
+
+   Edit `config/config.toml` and set your database credentials:
+
+   ```toml
+   [database]
+   engine = "postgres"
+   host = "localhost"
+   port = 5432
+   name = "my_app_dev"
+   user = "postgres"
+   password = ""
+   ssl_mode = "disable"
+   ```
+
+4. **Run migrations**
+
+   ```bash
+   devify migrate
+   ```
+
+   This runs all pending migrations in dependency order — auth tables first, then RBAC tables.
+
+5. **Start the dev server**
+
+   ```bash
+   devify dev
+   ```
+
+   This starts a hot-reloading dev server using Air. Your app is running at `http://localhost:4000`.
+
+6. **Create your first module**
+
+   ```bash
+   devify module:create blog --routes --migrations --config
+   ```
+
+   This scaffolds a complete module at `modules/blog/` with routes, migrations, and a typed config struct.
+
+7. **Register the module**
+
+   Add your module to `cmd/app/main.go`:
+
+   ```go
+   k.Register(blogmod.New())
+   ```
+
+   The kernel handles dependency resolution, migration execution, and route mounting automatically.
+
+</Steps>
+
+## What Just Happened?
+
+When you ran `devify dev`, the kernel:
+
+1. Loaded config from `config/config.toml` with environment variable overrides
+2. Created infrastructure adapters (database, cache, router)
+3. Registered all modules and resolved dependencies via topological sort
+4. Ran pending migrations for each module in dependency order
+5. Initialized each module, wiring event subscriptions and services
+6. Mounted HTTP routes and started the server
+
+## Next Steps
+
+- [Understand the project structure](/getting-started/project-structure/)
+- [Learn about the architecture](/architecture/overview/)
+- [Create a custom module](/module-development/creating-a-module/)
