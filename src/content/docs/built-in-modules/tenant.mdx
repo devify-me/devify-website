@@ -1,0 +1,122 @@
+---
+title: Tenant Module
+description: Built-in multi-tenant module — workspace isolation, member management, and invite system.
+---
+
+The tenant module provides multi-tenant workspace isolation. It handles tenant creation, slug-based identification, member management with roles, and email-based invitations. It depends on the [auth module](/built-in-modules/auth/) for user identity.
+
+## Features
+
+- Multi-tenant workspace isolation
+- Create, update, and delete tenants
+- Slug-based tenant identification
+- Member management with roles (owner, admin, member)
+- Email invites with token-based acceptance
+- Tenant resolution: header, subdomain, or path (configurable)
+- Auto-create personal tenant on user registration
+- Configurable max tenants per user
+
+## Configuration
+
+```toml
+[modules.tenant]
+resolution = "header"
+header_name = "X-Tenant-ID"
+auto_create_personal = true
+max_tenants_per_user = 10
+invite_expiry = "72h"
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth"}
+}
+```
+
+The tenant module uses `auth.UserService` to look up users when managing members and processing invitations.
+
+## HTTP Routes
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/tenants` | Create tenant | RequireAuth |
+| GET | `/tenants` | List user's tenants | RequireAuth |
+| GET | `/tenants/{id}` | Get tenant | RequireTenant |
+| PATCH | `/tenants/{id}` | Update tenant | RequireTenantRole(owner) |
+| DELETE | `/tenants/{id}` | Delete tenant | RequireTenantRole(owner) |
+| GET | `/tenants/{id}/members` | List members | RequireTenant |
+| POST | `/tenants/{id}/members/invite` | Invite member | RequireTenantRole(owner, admin) |
+| POST | `/tenants/{id}/members/accept` | Accept invite | RequireAuth |
+| DELETE | `/tenants/{id}/members/{uid}` | Remove member | RequireTenantRole(owner, admin) |
+| PATCH | `/tenants/{id}/members/{uid}` | Update member role | RequireTenantRole(owner) |
+
+## TenantService Interface
+
+Exported for other modules via DI as `tenant.service`:
+
+```go
+type TenantService interface {
+    Create(ctx context.Context, name, slug string, ownerID uuid.UUID) (*Tenant, error)
+    GetByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
+    GetBySlug(ctx context.Context, slug string) (*Tenant, error)
+    Update(ctx context.Context, id uuid.UUID, name string, settings map[string]any) (*Tenant, error)
+    Delete(ctx context.Context, id uuid.UUID) error
+    ListByUser(ctx context.Context, userID uuid.UUID) ([]TenantWithRole, error)
+    AddMember(ctx context.Context, tenantID, userID uuid.UUID, role string) error
+    RemoveMember(ctx context.Context, tenantID, userID uuid.UUID) error
+    UpdateMemberRole(ctx context.Context, tenantID, userID uuid.UUID, role string) error
+    GetMembers(ctx context.Context, tenantID uuid.UUID) ([]Member, error)
+    IsMember(ctx context.Context, tenantID, userID uuid.UUID) (bool, error)
+    InviteMember(ctx context.Context, tenantID uuid.UUID, email, role string, invitedBy uuid.UUID) (*Invite, error)
+    AcceptInvite(ctx context.Context, token string, userID uuid.UUID) error
+    CreatePersonalTenant(ctx context.Context, userID uuid.UUID, email string) (*Tenant, error)
+}
+```
+
+## Events
+
+| Event Name | Payload | When |
+|-----------|---------|------|
+| `tenant.created` | `*Tenant` | After a new tenant is created |
+| `tenant.deleted` | `*Tenant` | After a tenant is deleted |
+| `tenant.member_added` | `*Member` | After a member is added to a tenant |
+| `tenant.member_removed` | `*Member` | After a member is removed from a tenant |
+| `tenant.invite_created` | `*Invite` | After a new invite is sent |
+| `tenant.invite_accepted` | `*Invite` | After an invite is accepted |
+
+## Event Subscriptions
+
+The tenant module subscribes to `auth.user_registered` and automatically creates a personal tenant for new users when `auto_create_personal` is enabled:
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("auth.user_registered", func(e kernel.Event) error {
+        user := e.Payload.(*auth.User)
+        _, err := m.tenantService.CreatePersonalTenant(context.Background(), user.ID, user.Email)
+        return err
+    })
+}
+```
+
+## Middleware
+
+```go
+// Resolve tenant from header, subdomain, or path
+tenantmw.ResolveTenant(tenantService, config)
+
+// Require the user to be a member of the resolved tenant
+tenantmw.RequireTenant(tenantService)
+
+// Require the user to have a specific role within the tenant
+tenantmw.RequireTenantRole(tenantService, "owner", "admin")
+```
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `tenant.tenants` | id, name, slug, owner_id, settings, created_at, updated_at |
+| `tenant.members` | id, tenant_id, user_id, role, joined_at |
+| `tenant.invites` | id, tenant_id, email, role, token, invited_by, expires_at, accepted_at, created_at |

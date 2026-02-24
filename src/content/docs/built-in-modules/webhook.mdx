@@ -1,0 +1,102 @@
+---
+title: Webhook Module
+description: Built-in outgoing webhook system — tenant-scoped event delivery with HMAC signing, retries, and delivery tracking.
+---
+
+The webhook module provides an outgoing webhook system for tenant-scoped event delivery. Tenants register endpoint URLs to receive event notifications, with HMAC-SHA256 payload signing, automatic retries with exponential backoff, and full delivery tracking.
+
+## Features
+
+- Outgoing webhook system for tenant-scoped event delivery
+- Tenants register URLs to receive event notifications
+- HMAC-SHA256 payload signing (`X-Devify-Signature` header)
+- Delivery tracking with full request/response logging
+- Exponential backoff retries: 1m, 5m, 30m, 2h, 24h (max 5 attempts)
+- Configurable max endpoints per tenant (default 20)
+- Event fan-out via EventBus subscribers
+- Test delivery endpoint for debugging
+- Cross-tenant isolation enforced at service layer
+
+## Configuration
+
+```toml
+[modules.webhook]
+max_endpoints_per_tenant = 20
+delivery_timeout = "10s"
+max_retries = 5
+cleanup_after_days = 30
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth", "tenant"}
+}
+```
+
+The webhook module uses `auth.UserService` for actor resolution and depends on the tenant module for tenant-scoped isolation.
+
+## HTTP Routes
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/tenants/{id}/webhooks` | Create endpoint | RequireTenant |
+| GET | `/tenants/{id}/webhooks` | List endpoints | RequireTenant |
+| GET | `/tenants/{id}/webhooks/{wid}` | Get endpoint | RequireTenant |
+| PATCH | `/tenants/{id}/webhooks/{wid}` | Update endpoint | RequireTenant |
+| DELETE | `/tenants/{id}/webhooks/{wid}` | Delete endpoint | RequireTenant |
+| GET | `/tenants/{id}/webhooks/{wid}/deliveries` | List deliveries | RequireTenant |
+| POST | `/tenants/{id}/webhooks/{wid}/test` | Send test delivery | RequireTenant |
+
+## WebhookService Interface
+
+Exported as `webhook.service`:
+
+```go
+type WebhookService interface {
+    CreateEndpoint(ctx context.Context, tenantID uuid.UUID, url, secret string, events []string) (*Endpoint, error)
+    ListEndpoints(ctx context.Context, tenantID uuid.UUID) ([]Endpoint, error)
+    GetEndpoint(ctx context.Context, id, tenantID uuid.UUID) (*Endpoint, error)
+    UpdateEndpoint(ctx context.Context, id, tenantID uuid.UUID, url string, events []string, isActive bool) (*Endpoint, error)
+    DeleteEndpoint(ctx context.Context, id, tenantID uuid.UUID) error
+    Dispatch(ctx context.Context, tenantID uuid.UUID, eventName string, payload any) error
+    ListDeliveries(ctx context.Context, endpointID uuid.UUID, limit, offset int) ([]Delivery, error)
+    RetryDelivery(ctx context.Context, deliveryID uuid.UUID) error
+    ProcessRetries(ctx context.Context) error
+}
+```
+
+## Event Subscriptions
+
+The webhook module subscribes to events from other modules and dispatches them to matching tenant endpoints:
+
+| Source Module | Events |
+|--------------|--------|
+| auth | `auth.user_registered` |
+| tenant | `tenant.created`, `tenant.deleted`, `tenant.member_added`, `tenant.member_removed`, `tenant.invite_created`, `tenant.invite_accepted` |
+| billing | `billing.subscription_created`, `billing.plan_changed`, `billing.subscription_canceled`, `billing.payment_succeeded`, `billing.payment_failed` |
+
+## Delivery Flow
+
+1. An event fires via the kernel EventBus
+2. The webhook module finds all active endpoints for the tenant subscribed to that event
+3. For each matching endpoint, a delivery record is created
+4. The payload is signed with HMAC-SHA256 using the endpoint's secret
+5. The module POSTs to the endpoint URL with the `X-Devify-Signature: sha256=<hmac>` header
+6. The response status code and body are recorded on the delivery
+7. On failure (non-2xx or timeout), the delivery is scheduled for retry with exponential backoff
+
+## Scheduled Tasks
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `webhook.retry` | Every 1 minute | Processes pending delivery retries |
+| `webhook.cleanup` | Daily | Deletes deliveries older than `cleanup_after_days` |
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `webhook.endpoints` | id, tenant_id, url, secret, events (TEXT[]), is_active, created_at, updated_at |
+| `webhook.deliveries` | id, endpoint_id, event_name, payload (JSONB), status_code, response_body, duration_ms, attempt, next_retry_at, delivered_at, created_at |

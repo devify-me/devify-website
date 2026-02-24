@@ -64,6 +64,12 @@ export default defineConfig({
 					items: [
 						{ slug: 'built-in-modules/auth' },
 						{ slug: 'built-in-modules/rbac' },
+						{ slug: 'built-in-modules/tenant' },
+						{ slug: 'built-in-modules/billing' },
+						{ slug: 'built-in-modules/notification' },
+						{ slug: 'built-in-modules/apikey' },
+						{ slug: 'built-in-modules/webhook' },
+						{ slug: 'built-in-modules/audit' },
 					],
 				},
 				{ label: 'CLI Reference', slug: 'cli-reference' },
