@@ -1,49 +1,49 @@
-# Starlight Starter Kit: Basics
+# Devify Website
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+The documentation and landing page for [Devify](https://devify.me) — a modular Go framework for building applications with the organizational clarity of microservices and the deployment simplicity of a single binary.
 
-```
-npm create astro@latest -- --template starlight
-```
+Built with [Astro](https://astro.build) + [Starlight](https://starlight.astro.build).
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+## Project Structure
 
 ```
 .
-├── public/
+├── public/                         # Static assets (favicons, etc.)
 ├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
+│   ├── assets/branding/            # Devify logos and branding
+│   ├── components/landing/         # Landing page components
+│   ├── content/docs/               # Documentation (MDX)
+│   │   ├── getting-started/        # Installation, quick start, project structure
+│   │   ├── architecture/           # Kernel, modules, adapters, eventbus
+│   │   ├── module-development/     # Routes, services, repositories, events
+│   │   ├── built-in-modules/       # Auth, RBAC
+│   │   ├── configuration/          # TOML, env vars, module config
+│   │   ├── database-guide/         # PostgreSQL, MySQL, SQLite, MongoDB
+│   │   ├── deployment/             # Production builds, Docker
+│   │   └── cli-reference/          # CLI commands
+│   ├── layouts/                    # Custom landing page layout
+│   ├── pages/                      # Landing page (index.astro)
+│   ├── scripts/                    # Scroll animations
+│   └── styles/                     # Fonts, landing page, Starlight overrides
+├── astro.config.mjs                # Astro + Starlight configuration
 ├── package.json
 └── tsconfig.json
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+## Commands
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+All commands are run from the root of the project:
 
-Static assets, like favicons, can be placed in the `public/` directory.
+| Command              | Action                                      |
+| :------------------- | :------------------------------------------ |
+| `npm install`        | Install dependencies                        |
+| `npm run dev`        | Start local dev server at `localhost:4321`  |
+| `npm run build`      | Build production site to `./dist/`          |
+| `npm run preview`    | Preview the build locally before deploying  |
 
-## 🧞 Commands
+## Tech Stack
 
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+- **Astro** — Static site generation
+- **Starlight** — Documentation framework
+- **TypeScript** — Type-safe configuration
+- **Custom CSS** — Landing page styling with scroll animations

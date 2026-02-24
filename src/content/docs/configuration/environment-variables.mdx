@@ -15,21 +15,21 @@ DEVIFY_<SECTION>_<KEY>
 
 For example:
 
-| TOML Key | Environment Variable |
-|----------|---------------------|
-| `database.host` | `DEVIFY_DATABASE_HOST` |
-| `database.port` | `DEVIFY_DATABASE_PORT` |
-| `app.log_level` | `DEVIFY_APP_LOG_LEVEL` |
+| TOML Key                | Environment Variable           |
+| ----------------------- | ------------------------------ |
+| `database.host`         | `DEVIFY_DATABASE_HOST`         |
+| `database.port`         | `DEVIFY_DATABASE_PORT`         |
+| `app.log_level`         | `DEVIFY_APP_LOG__LEVEL`        |
 | `modules.auth.strategy` | `DEVIFY_MODULES_AUTH_STRATEGY` |
-| `cache.engine` | `DEVIFY_CACHE_ENGINE` |
+| `cache.engine`          | `DEVIFY_CACHE_ENGINE`          |
 
 ## Underscore Handling
 
 TOML keys with underscores use double underscore (`__`) in environment variables:
 
-| TOML Key | Environment Variable |
-|----------|---------------------|
-| `database.ssl_mode` | `DEVIFY_DATABASE_SSL__MODE` |
+| TOML Key                  | Environment Variable               |
+| ------------------------- | ---------------------------------- |
+| `database.ssl_mode`       | `DEVIFY_DATABASE_SSL__MODE`        |
 | `database.max_open_conns` | `DEVIFY_DATABASE_MAX__OPEN__CONNS` |
 
 Single underscores in env vars represent the section separator (`.`), while double underscores represent literal underscores in the key name.
