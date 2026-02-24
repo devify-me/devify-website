@@ -10,7 +10,7 @@ k, _ := kernel.NewKernel("config/config.toml",
 
 k.Register(authmod.New())     // identity & login
 k.Register(rbacmod.New())     // roles & permissions
-k.Register(billingmod.New())  // your module
+k.Register(tenantmod.New())   // multi-tenancy
 
 k.Boot() // resolves deps, runs migrations, wires events`;
 ---

@@ -64,6 +64,7 @@ export default defineConfig({
 					items: [
 						{ slug: 'built-in-modules/auth' },
 						{ slug: 'built-in-modules/rbac' },
+						{ slug: 'built-in-modules/tenant' },
 					],
 				},
 				{ label: 'CLI Reference', slug: 'cli-reference' },
