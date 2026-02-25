@@ -8,7 +8,7 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 ## Prerequisites
 
 - **Go 1.22+** — [Download Go](https://go.dev/dl/)
-- **A database engine** — PostgreSQL (recommended), MySQL, SQLite, or MongoDB
+- **Docker or Podman** — for running database and service containers (recommended)
 - **Git** — for version control
 
 ## Install the CLI
@@ -33,6 +33,10 @@ import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 </Steps>
 
 ## Database Setup
+
+Devify generates a `compose.yml` for your project that runs the database (and other services) in containers. If you have Docker or Podman installed, no manual database setup is needed — just run `make dev`.
+
+If you prefer to install databases natively:
 
 <Tabs>
   <TabItem label="PostgreSQL" icon="seti:db">
