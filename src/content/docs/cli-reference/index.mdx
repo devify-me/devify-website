@@ -3,7 +3,7 @@ title: CLI Reference
 description: Complete reference for all Devify CLI commands.
 ---
 
-The Devify CLI provides 18 built-in commands organized into 6 categories, plus dynamic module commands.
+The Devify CLI provides 19 built-in commands organized into 6 categories, plus dynamic module commands.
 
 ## Project Lifecycle
 
@@ -36,6 +36,16 @@ devify dev
 ```
 
 Wraps Air for automatic rebuilding on file changes. Watches `.go`, `.templ`, and `.toml` files.
+
+### devify compose
+
+Generate `compose.yml` from `config/config.toml`.
+
+```bash
+devify compose
+```
+
+Reads the current configuration and generates a `compose.yml` with containers for the selected database engine, cache adapter (if Redis), and Mailpit (in development mode). Also includes any custom services declared via `[services.*]` config sections. Regenerate after changing adapters in config.
 
 ### devify run
 

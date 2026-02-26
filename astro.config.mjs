@@ -33,6 +33,7 @@ export default defineConfig({
 						{ slug: 'getting-started/installation' },
 						{ slug: 'getting-started/quick-start' },
 						{ slug: 'getting-started/project-structure' },
+						{ slug: 'getting-started/local-development' },
 					],
 				},
 				{
