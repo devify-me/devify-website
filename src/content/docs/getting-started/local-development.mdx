@@ -1,0 +1,114 @@
+---
+title: Local Development
+description: Run databases and services locally with containers and Make.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Devify generates a `compose.yml` and `Makefile` for every project, giving you a single-command development environment.
+
+## How It Works
+
+When you run `devify init`, the CLI generates a `compose.yml` based on your selected database engine. The included `Makefile` wraps container orchestration so you never need to run `docker compose` or `podman compose` directly.
+
+```
+config/config.toml  →  devify compose  →  compose.yml  →  make dev
+```
+
+The Makefile auto-detects whether you have Podman or Docker installed.
+
+## Make Targets
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Start containers + hot-reload dev server (Air) |
+| `make build` | Build app and CLI binaries to `./bin/` |
+| `make test` | Start containers + run integration tests |
+| `make test-unit` | Run unit tests (no containers needed) |
+| `make vet` | Run `go vet` on all packages |
+| `make services-up` | Start database, cache, and mail containers |
+| `make services-down` | Stop containers |
+| `make services-reset` | Destroy volumes and restart containers (fresh database) |
+
+## What Gets Containerized
+
+The `devify compose` command reads `config/config.toml` and generates containers for:
+
+- **Database** — PostgreSQL, MySQL/MariaDB, or MongoDB (SQLite needs no container)
+- **Cache** — Redis (if `cache.engine = "redis"`; BadgerDB and in-memory need no container)
+- **Mail** — Mailpit SMTP server + web UI (in development mode only)
+
+### Default Ports
+
+| Service | Port | Web UI |
+|---------|------|--------|
+| PostgreSQL | 5432 | — |
+| MySQL/MariaDB | 3306 | — |
+| MongoDB | 27017 | — |
+| Redis | 6379 | — |
+| Mailpit SMTP | 1025 | [localhost:8025](http://localhost:8025) |
+
+## Regenerating compose.yml
+
+After changing adapters in `config/config.toml` (e.g., switching from PostgreSQL to MySQL), regenerate the compose file:
+
+```bash
+devify compose
+```
+
+This reads the current config and produces a fresh `compose.yml` with the correct containers, ports, and volumes.
+
+## Custom Services
+
+Modules can declare their own container dependencies using `[services.*]` sections in `config/config.toml`. These are automatically included when you run `devify compose`.
+
+```toml title="config/config.toml"
+[services.minio]
+image = "quay.io/minio/minio:latest"
+ports = ["9000:9000", "9001:9001"]
+volume_name = "miniodata"
+volume_path = "/data"
+
+[services.elasticsearch]
+image = "docker.io/library/elasticsearch:8.12.0"
+ports = ["9200:9200"]
+
+[services.elasticsearch.environment]
+discovery.type = "single-node"
+xpack.security.enabled = "false"
+```
+
+Each custom service supports:
+
+| Field | Description |
+|-------|-------------|
+| `image` | Container image (required) |
+| `ports` | List of port mappings |
+| `environment` | Key-value environment variables |
+| `volume_name` | Named volume identifier |
+| `volume_path` | Mount path inside the container |
+
+## Podman vs Docker
+
+The Makefile prefers Podman when available, falling back to Docker:
+
+<Tabs>
+  <TabItem label="Podman">
+    ```bash
+    # Podman is auto-detected — no configuration needed
+    make dev
+    ```
+  </TabItem>
+  <TabItem label="Docker">
+    ```bash
+    # Docker is used as fallback if Podman is not installed
+    make dev
+    ```
+  </TabItem>
+  <TabItem label="Override">
+    ```bash
+    # Force a specific compose command
+    COMPOSE="docker compose" make dev
+    ```
+  </TabItem>
+</Tabs>

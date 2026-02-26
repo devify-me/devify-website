@@ -1,0 +1,134 @@
+---
+title: Billing Module
+description: Built-in billing module — plans, subscriptions, payment gateways, invoices, and usage metering.
+---
+
+The billing module manages plans, subscriptions, payment processing, and usage-based metering. It abstracts payment gateways behind a common interface and supports Stripe, Paddle, PayPal, and a noop gateway for development. It depends on the [auth module](/built-in-modules/auth/) and [tenant module](/built-in-modules/tenant/).
+
+## Features
+
+- Plan management with feature limits (JSONB)
+- Subscription lifecycle (subscribe, upgrade, downgrade, cancel)
+- Payment gateway abstraction (Stripe, Paddle, PayPal, noop)
+- Paddle acts as Merchant of Record for EU VAT
+- Gateway customer mapping
+- Payment method management (setup intents, list, default, detach)
+- Invoice tracking
+- Usage-based metering and limit enforcement
+- Inbound payment provider webhooks
+- Auto-seed default plans on first boot (free, pro, enterprise)
+- Auto-provision free subscription on tenant creation
+
+## Configuration
+
+```toml
+[modules.billing]
+gateway = "noop"
+default_plan = "free"
+trial_days = 0
+auto_seed_plans = true
+currency = "usd"
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth", "tenant"}
+}
+```
+
+The billing module uses `tenant.TenantService` to associate subscriptions with tenants and listens to tenant lifecycle events.
+
+## HTTP Routes
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/plans` | List active plans | Public |
+| POST | `/plans` | Create plan | RequireRole("admin") |
+| PATCH | `/plans/{id}` | Update plan | RequireRole("admin") |
+| GET | `/tenants/{id}/subscription` | Get subscription | RequireTenant |
+| POST | `/tenants/{id}/subscription` | Subscribe to plan | RequireTenantRole(owner, admin) |
+| PATCH | `/tenants/{id}/subscription` | Change plan | RequireTenantRole(owner, admin) |
+| DELETE | `/tenants/{id}/subscription` | Cancel subscription | RequireTenantRole(owner) |
+| POST | `/tenants/{id}/payment-methods/setup` | Create setup intent | RequireTenantRole(owner, admin) |
+| GET | `/tenants/{id}/payment-methods` | List payment methods | RequireTenantRole(owner, admin) |
+| PATCH | `/tenants/{id}/payment-methods/{pmid}/default` | Set default | RequireTenantRole(owner, admin) |
+| DELETE | `/tenants/{id}/payment-methods/{pmid}` | Detach method | RequireTenantRole(owner, admin) |
+| GET | `/tenants/{id}/invoices` | List invoices | RequireTenant |
+| GET | `/tenants/{id}/usage` | Get usage metrics | RequireTenant |
+| POST | `/billing/webhooks/{gateway}` | Inbound gateway webhooks | Signature verified |
+
+## BillingService Interface
+
+Exported for other modules via DI as `billing.service`:
+
+```go
+type BillingService interface {
+    CreatePlan(ctx context.Context, name, displayName string, priceCents int, currency string, features map[string]any, gatewayPriceID string) (*Plan, error)
+    GetPlan(ctx context.Context, id uuid.UUID) (*Plan, error)
+    GetPlanByName(ctx context.Context, name string) (*Plan, error)
+    ListPlans(ctx context.Context) ([]Plan, error)
+    UpdatePlan(ctx context.Context, id uuid.UUID, displayName string, priceCents int, features map[string]any) (*Plan, error)
+    GetOrCreateCustomer(ctx context.Context, tenantID uuid.UUID) (*Customer, error)
+    CreateSetupIntent(ctx context.Context, tenantID uuid.UUID) (string, error)
+    ListPaymentMethods(ctx context.Context, tenantID uuid.UUID) ([]PaymentMethodInfo, error)
+    SetDefaultPaymentMethod(ctx context.Context, tenantID uuid.UUID, paymentMethodID string) error
+    DetachPaymentMethod(ctx context.Context, tenantID uuid.UUID, paymentMethodID string) error
+    Subscribe(ctx context.Context, tenantID, planID uuid.UUID) (*Subscription, error)
+    GetSubscription(ctx context.Context, tenantID uuid.UUID) (*Subscription, error)
+    ChangePlan(ctx context.Context, tenantID, newPlanID uuid.UUID) (*Subscription, error)
+    CancelSubscription(ctx context.Context, tenantID uuid.UUID, atPeriodEnd bool) error
+    ListInvoices(ctx context.Context, tenantID uuid.UUID, limit int) ([]Invoice, error)
+    GetUsage(ctx context.Context, tenantID uuid.UUID, featureKey string) (int64, error)
+    IncrementUsage(ctx context.Context, tenantID uuid.UUID, featureKey string, delta int64) error
+    CheckLimit(ctx context.Context, tenantID uuid.UUID, featureKey string) (allowed bool, current, limit int64, err error)
+    HandleGatewayWebhook(ctx context.Context, payload []byte, signature string) error
+    CreateDefaultSubscription(ctx context.Context, tenantID uuid.UUID) (*Subscription, error)
+}
+```
+
+## Events
+
+| Event Name | Payload | When |
+|-----------|---------|------|
+| `billing.subscription_created` | `*Subscription` | After a new subscription is created |
+| `billing.plan_changed` | `*Subscription` | After a subscription plan is changed |
+| `billing.subscription_canceled` | `*Subscription` | After a subscription is canceled |
+| `billing.payment_succeeded` | `*Invoice` | After a payment succeeds |
+| `billing.payment_failed` | `*Invoice` | After a payment fails |
+| `billing.limit_reached` | `*UsageAlert` | When a usage limit is reached |
+
+## Event Subscriptions
+
+The billing module subscribes to `tenant.created` and automatically provisions a free subscription and gateway customer for new tenants:
+
+```go
+func (m *Module) RegisterEvents(bus kernel.EventBus) {
+    bus.Subscribe("tenant.created", func(e kernel.Event) error {
+        tenant := e.Payload.(*tenantpkg.Tenant)
+        _, _ = m.billingService.GetOrCreateCustomer(context.Background(), tenant.ID)
+        _, err := m.billingService.CreateDefaultSubscription(context.Background(), tenant.ID)
+        return err
+    })
+}
+```
+
+## CLI Commands
+
+```bash
+devify billing:list-plans
+devify billing:create-plan
+devify billing:set-plan
+devify billing:sync-plans
+```
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `billing.plans` | id, name, display_name, price_cents, currency, features (JSONB), gateway_price_id, is_active, sort_order, created_at, updated_at |
+| `billing.customers` | id, tenant_id, gateway, external_id, created_at |
+| `billing.subscriptions` | id, tenant_id, plan_id, gateway_subscription_id, status, current_period_start, current_period_end, cancel_at_period_end, canceled_at, created_at, updated_at |
+| `billing.invoices` | id, tenant_id, gateway_invoice_id, amount_cents, currency, status, period_start, period_end, paid_at, hosted_url, created_at |
+| `billing.usage` | id, tenant_id, feature_key, current_value, updated_at |

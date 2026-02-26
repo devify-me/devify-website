@@ -41,13 +41,88 @@
           <span class="module-badge core">CORE</span>
         </div>
         <ul>
-          <li>Multi-tenancy: orgs &amp; workspaces</li>
-          <li>Membership with scoped roles</li>
-          <li>Invite flow with token-based accept</li>
+          <li>Multi-tenant workspace isolation</li>
+          <li>Member management with roles</li>
+          <li>Email invites with token acceptance</li>
           <li>Header / subdomain / path resolution</li>
           <li>Auto-create personal tenant on signup</li>
           <li>ResolveTenant / RequireTenant middleware</li>
-          <li>CLI: devify tenant:list, tenant:create</li>
+          <li>Events: TenantCreated, MemberAdded</li>
+        </ul>
+      </div>
+      <div class="module-card reveal">
+        <div class="module-header">
+          <span class="module-name">billing</span>
+          <span class="module-badge core">CORE</span>
+        </div>
+        <ul>
+          <li>Plan &amp; subscription management</li>
+          <li>Stripe, Paddle, PayPal + noop gateways</li>
+          <li>Usage metering &amp; limit enforcement</li>
+          <li>Payment methods &amp; invoices</li>
+          <li>Inbound payment webhooks</li>
+          <li>Auto-seed plans, auto-provision subs</li>
+          <li>CLI: devify billing:set-plan</li>
+        </ul>
+      </div>
+      <div class="module-card reveal">
+        <div class="module-header">
+          <span class="module-name">notification</span>
+          <span class="module-badge core">CORE</span>
+        </div>
+        <ul>
+          <li>In-app notification bell</li>
+          <li>Unread count, mark read, mark all</li>
+          <li>User preferences &amp; muted types</li>
+          <li>Optional email delivery</li>
+          <li>Event-driven: invites, billing alerts</li>
+          <li>Configurable per-user limit</li>
+          <li>Auto-cleanup scheduled task</li>
+        </ul>
+      </div>
+      <div class="module-card reveal">
+        <div class="module-header">
+          <span class="module-name">apikey</span>
+          <span class="module-badge core">CORE</span>
+        </div>
+        <ul>
+          <li>Programmatic API access via keys</li>
+          <li>dvfy_ prefix, SHA-256 hashed storage</li>
+          <li>Global auth middleware (falls through)</li>
+          <li>Optional tenant scope &amp; permissions</li>
+          <li>Works alongside session/JWT auth</li>
+          <li>last_used_at tracking</li>
+          <li>Events: KeyCreated, KeyRevoked</li>
+        </ul>
+      </div>
+      <div class="module-card reveal">
+        <div class="module-header">
+          <span class="module-name">webhook</span>
+          <span class="module-badge core">CORE</span>
+        </div>
+        <ul>
+          <li>Outgoing webhooks per tenant</li>
+          <li>HMAC-SHA256 payload signing</li>
+          <li>Delivery tracking &amp; retry logs</li>
+          <li>Exponential backoff (5 retries)</li>
+          <li>Subscribes to all platform events</li>
+          <li>Test delivery endpoint</li>
+          <li>Auto-cleanup of old deliveries</li>
+        </ul>
+      </div>
+      <div class="module-card reveal">
+        <div class="module-header">
+          <span class="module-name">audit</span>
+          <span class="module-badge core">CORE</span>
+        </div>
+        <ul>
+          <li>Immutable append-only audit trail</li>
+          <li>Auto-logs all platform events</li>
+          <li>IP address &amp; User-Agent capture</li>
+          <li>Query by tenant, actor, action, date</li>
+          <li>Tenant-scoped &amp; system-wide views</li>
+          <li>Configurable retention policy</li>
+          <li>LogFromContext for easy logging</li>
         </ul>
       </div>
       <div class="module-card custom reveal">

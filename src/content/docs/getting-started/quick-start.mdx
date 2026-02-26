@@ -21,36 +21,29 @@ import { Steps } from '@astrojs/starlight/components';
    cd my-app
    ```
 
-3. **Configure your database**
+3. **Start services and the dev server**
 
-   Edit `config/config.toml` and set your database credentials:
+   The project includes a generated `compose.yml` and `Makefile`. One command starts your database, mail server, and the hot-reloading dev server:
 
-   ```toml
-   [database]
-   engine = "postgres"
-   host = "localhost"
-   port = 5432
-   name = "my_app_dev"
-   user = "postgres"
-   password = ""
-   ssl_mode = "disable"
+   ```bash
+   make dev
    ```
 
+   This starts your database container (PostgreSQL by default), Mailpit for local email testing, and the Air hot-reload server. Your app is running at `http://localhost:4000`.
+
+   :::tip
+   The `Makefile` auto-detects Podman or Docker — no configuration needed.
+   :::
+
 4. **Run migrations**
+
+   In a separate terminal:
 
    ```bash
    devify migrate
    ```
 
    This runs all pending migrations in dependency order — auth tables first, then RBAC tables.
-
-5. **Start the dev server**
-
-   ```bash
-   devify dev
-   ```
-
-   This starts a hot-reloading dev server using Air. Your app is running at `http://localhost:4000`.
 
 6. **Create your first module**
 

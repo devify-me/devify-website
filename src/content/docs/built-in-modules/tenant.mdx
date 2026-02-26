@@ -43,9 +43,26 @@ func (m *Module) Dependencies() []string {
 
 The tenant module uses `auth.UserService` to look up users and `auth.AuthStrategy` for route authentication.
 
+## HTTP Routes
+
+All routes require authentication. Routes under `/tenants/{id}` operate on a specific tenant.
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/tenants` | Create a new tenant | RequireAuth |
+| GET | `/tenants` | List user's tenants | RequireAuth |
+| GET | `/tenants/{id}` | Get tenant | RequireTenant |
+| PATCH | `/tenants/{id}` | Update tenant | RequireTenantRole(owner) |
+| DELETE | `/tenants/{id}` | Delete tenant | RequireTenantRole(owner) |
+| GET | `/tenants/{id}/members` | List members | RequireTenant |
+| POST | `/tenants/{id}/invites` | Create an invitation | RequireTenantRole(owner, admin) |
+| POST | `/invites/accept` | Accept invite by token | RequireAuth |
+| PATCH | `/tenants/{id}/members/{uid}` | Update member role | RequireTenantRole(owner) |
+| DELETE | `/tenants/{id}/members/{uid}` | Remove member | RequireTenantRole(owner, admin) |
+
 ## TenantService Interface
 
-Exported as `tenant.service`:
+Exported for other modules via DI as `tenant.service`:
 
 ```go
 type TenantService interface {
@@ -74,24 +91,6 @@ type TenantService interface {
     CreatePersonalTenant(ctx context.Context, userID uuid.UUID, email string) (*Tenant, error)
 }
 ```
-
-## HTTP Routes
-
-All routes require authentication. Routes under `/tenants/{id}` operate on a specific tenant.
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/tenants/` | Create a new tenant |
-| GET | `/tenants/` | List tenants for the authenticated user |
-| GET | `/tenants/{id}` | Get tenant by ID |
-| PATCH | `/tenants/{id}` | Update tenant name/settings |
-| DELETE | `/tenants/{id}` | Delete a tenant |
-| GET | `/tenants/{id}/members` | List tenant members |
-| POST | `/tenants/{id}/members` | Add a member to the tenant |
-| PATCH | `/tenants/{id}/members/{uid}` | Update a member's role |
-| DELETE | `/tenants/{id}/members/{uid}` | Remove a member |
-| POST | `/tenants/{id}/invites` | Create an invitation |
-| POST | `/invites/accept` | Accept an invitation by token |
 
 ## Events
 

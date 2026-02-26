@@ -1,0 +1,99 @@
+---
+title: Audit Module
+description: Built-in audit trail — immutable append-only logging of who did what, when, for compliance and security.
+---
+
+The audit module provides an immutable, append-only audit trail for compliance and security logging. It automatically captures events from all other modules via the EventBus and enriches entries with request metadata (IP address, user agent) through its global middleware.
+
+## Features
+
+- Immutable append-only audit trail
+- "Who did what, when" — compliance and security logging
+- Automatic event-driven logging from all other modules
+- `CaptureRequestInfo` middleware for IP and User-Agent tracking
+- `LogFromContext` extracts actor, tenant, IP, and user-agent from context
+- Query with filters: tenant, actor, action, resource, date range
+- Pagination support
+- Configurable retention with scheduled cleanup
+- Tenant-scoped and system-wide query endpoints
+
+## Configuration
+
+```toml
+[modules.audit]
+retention_days = 365
+enabled = true
+```
+
+## Dependencies
+
+```go
+func (m *Module) Dependencies() []string {
+    return []string{"auth", "rbac", "tenant"}
+}
+```
+
+The audit module uses `auth.UserService` for actor resolution, the RBAC module for admin role checks on the system-wide endpoint, and the tenant module for tenant-scoped isolation.
+
+## HTTP Routes
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/tenants/{id}/audit` | Query tenant audit log | RequireTenant |
+| GET | `/audit` | Query system audit log | RequireRole("admin") |
+
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `action` | string | Filter by action name |
+| `resource_type` | string | Filter by resource type |
+| `resource_id` | string | Filter by resource ID |
+| `actor_id` | UUID | Filter by actor user ID |
+| `from` | RFC 3339 | Start of date range |
+| `to` | RFC 3339 | End of date range |
+| `limit` | int | Max entries to return |
+| `offset` | int | Pagination offset |
+
+## AuditService Interface
+
+Exported as `audit.service`:
+
+```go
+type AuditService interface {
+    Log(ctx context.Context, entry *Entry) error
+    LogFromContext(ctx context.Context, action, resourceType, resourceID string, metadata map[string]any) error
+    Query(ctx context.Context, filter *QueryFilter) ([]Entry, int, error)
+}
+```
+
+## Event Subscriptions
+
+The audit module subscribes to events from all other modules and automatically logs them:
+
+| Source Module | Events |
+|--------------|--------|
+| auth | `auth.user_registered`, `auth.user_logged_in`, `auth.user_logged_out`, `auth.password_reset` |
+| tenant | `tenant.created`, `tenant.deleted`, `tenant.member_added`, `tenant.member_removed`, `tenant.invite_created`, `tenant.invite_accepted` |
+| billing | `billing.subscription_created`, `billing.plan_changed`, `billing.subscription_canceled`, `billing.payment_succeeded`, `billing.payment_failed`, `billing.limit_reached` |
+| apikey | `apikey.created`, `apikey.revoked` |
+
+## Middleware
+
+- **CaptureRequestInfo** — global middleware (via `HasMiddleware`). Extracts the client IP address (from `X-Forwarded-For`, `X-Real-IP`, or `RemoteAddr`) and `User-Agent` header into the request context. The `LogFromContext` method reads these values automatically when creating audit entries.
+
+```go
+auditmw.CaptureRequestInfo()
+```
+
+## Scheduled Tasks
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `audit.cleanup` | Daily | Deletes entries older than `retention_days` |
+
+## Database Tables
+
+| Table | Schema |
+|-------|--------|
+| `audit.entries` | id, tenant_id, actor_id, action, resource_type, resource_id, metadata (JSONB), ip_address, user_agent, created_at |
