@@ -16,6 +16,9 @@ log_level = "info"        # debug, info, warn, error
 [server]
 host = "0.0.0.0"
 port = 4000
+read_timeout = "5s"
+write_timeout = "10s"
+idle_timeout = "120s"
 
 [database]
 engine = "postgres"       # postgres, mysql, sqlite, mongodb
@@ -33,13 +36,13 @@ conn_max_lifetime = "5m"
 engine = "memory"         # memory, redis, badger
 
 [mail]
-engine = "smtp"
-host = "localhost"
-port = 1025
+engine = "smtp"           # smtp, resend, sendgrid, postmark, ses
+host = "localhost"        # SMTP only
+port = 1025              # SMTP only
 from = "noreply@example.com"
 
 [storage]
-engine = "local"          # local, s3
+engine = "local"          # local, s3, sftp, webdav
 local_root = "./uploads"
 
 [renderer]
@@ -53,11 +56,11 @@ enabled = true
 
 # Per-module configuration
 [modules.auth]
-strategy = "jwt"
+strategy = "session"
 hasher = "argon2id"
 session_ttl = "24h"
-min_password_length = 8
-jwt_secret = "change-me-in-production"
+min_password_length = 12
+jwt_secret = ""
 jwt_expiry = "1h"
 
 [modules.rbac]
@@ -87,6 +90,9 @@ invite_expiry = "72h"            # invite link expiration
 |-----|------|---------|-------------|
 | host | string | 0.0.0.0 | Bind address |
 | port | int | 4000 | Listen port |
+| read_timeout | duration | 5s | HTTP read timeout |
+| write_timeout | duration | 10s | HTTP write timeout |
+| idle_timeout | duration | 120s | HTTP idle timeout |
 
 ### [database]
 
@@ -98,7 +104,122 @@ invite_expiry = "72h"            # invite link expiration
 | name | string | — | Database name |
 | user | string | — | Database user |
 | password | string | — | Database password |
-| ssl_mode | string | disable | SSL mode |
+| ssl_mode | string | disable | SSL mode (PostgreSQL only) |
 | max_open_conns | int | 25 | Maximum open connections |
 | max_idle_conns | int | 5 | Maximum idle connections |
 | conn_max_lifetime | duration | 5m | Maximum connection lifetime |
+| path | string | — | Database file path (SQLite only) |
+| uri | string | — | Connection URI (MongoDB only) |
+
+### [cache]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| engine | string | memory | Cache engine (memory/redis/badger) |
+| address | string | localhost:6379 | Redis address (Redis only) |
+| password | string | — | Redis password (Redis only) |
+| db | int | 0 | Redis database number (Redis only) |
+| path | string | ./data/badger | Data directory (BadgerDB only) |
+
+### [mail]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| engine | string | smtp | Mail engine (smtp/resend/sendgrid/postmark/ses) |
+| from | string | — | Default sender address |
+| host | string | localhost | SMTP host (SMTP only) |
+| port | int | 1025 | SMTP port (SMTP only) |
+| api_key | string | — | API key (Resend, SendGrid, Postmark) |
+| region | string | us-east-1 | AWS region (SES only) |
+
+All mail adapters fall back to log-only mode when credentials are missing, so your app boots in development without configuration.
+
+### [storage]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| engine | string | local | Storage engine (local/s3/sftp/webdav) |
+| local_root | string | ./uploads | Upload directory (Local only) |
+| s3_bucket | string | — | S3 bucket name (S3/MinIO) |
+| s3_region | string | us-east-1 | S3 region (S3/MinIO) |
+| s3_endpoint | string | — | Custom endpoint URL (MinIO/S3-compatible) |
+| s3_access_key | string | — | Access key (MinIO) |
+| s3_secret_key | string | — | Secret key (MinIO) |
+| force_path_style | bool | false | Use path-style addressing (required for MinIO) |
+| sftp_host | string | localhost | SFTP server host |
+| sftp_port | int | 22 | SFTP server port |
+| sftp_user | string | — | SFTP username |
+| sftp_password | string | — | SFTP password |
+| sftp_base_path | string | /uploads | SFTP base directory |
+| webdav_url | string | — | WebDAV server URL |
+| webdav_user | string | — | WebDAV username |
+| webdav_password | string | — | WebDAV password |
+| webdav_base_path | string | /uploads | WebDAV base directory |
+
+### [renderer]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| engine | string | templ | Renderer engine (templ/gotemplate) |
+
+### [events]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| buffer_size | int | 256 | Event bus channel buffer size |
+
+### [scheduler]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| enabled | bool | true | Enable/disable scheduled tasks |
+
+### [modules.auth]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| strategy | string | session | Auth strategy (session/jwt) |
+| hasher | string | argon2id | Password hasher (argon2id/bcrypt) |
+| session_ttl | duration | 24h | Session lifetime |
+| min_password_length | int | 12 | Minimum password length |
+| jwt_secret | string | — | JWT signing secret (required if strategy=jwt) |
+| jwt_expiry | duration | 1h | JWT token expiry |
+
+### [modules.auth.oauth]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| enabled | bool | false | Enable OAuth support |
+| redirect_url | string | — | Base URL for OAuth callbacks |
+
+Each provider (google, github, discord) has:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| client_id | string | OAuth client ID |
+| client_secret | string | OAuth client secret |
+
+### [modules.pwa]
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| enabled | bool | true | Enable PWA features |
+| name | string | — | App name for manifest |
+| short_name | string | — | Short name for manifest |
+| theme_color | string | #4f46e5 | Theme color |
+| background_color | string | #ffffff | Background color |
+| display | string | standalone | Display mode |
+| offline_strategy | string | cache-first | Caching strategy (cache-first/network-first/stale-while-revalidate) |
+
+PWA capabilities are configured under `[modules.pwa.capabilities]`:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| offline | bool | true | Offline support with service worker |
+| install_prompt | bool | true | "Add to Home Screen" prompt |
+| camera | bool | false | Camera access API |
+| video | bool | false | Video capture API |
+| audio | bool | false | Audio capture API |
+| geolocation | bool | false | GPS/Geolocation API |
+| push_notifications | bool | false | Web Push notifications |
+| background_sync | bool | false | Background sync API |

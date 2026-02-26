@@ -1,9 +1,9 @@
 ---
 title: Auth Module
-description: Built-in authentication module — identity, registration, login, and password management.
+description: Built-in authentication module — identity, registration, login, OAuth, and password management.
 ---
 
-The auth module owns identity management. It handles user registration, login, logout, and password reset. Authorization (roles/permissions) belongs to the [RBAC module](/built-in-modules/rbac/).
+The auth module owns identity management. It handles user registration, login, logout, password reset, and OAuth2 social login. Authorization (roles/permissions) belongs to the [RBAC module](/built-in-modules/rbac/).
 
 ## Features
 
@@ -11,6 +11,7 @@ The auth module owns identity management. It handles user registration, login, l
 - Login / logout
 - Password reset flow
 - Two authentication strategies: Session (SCS) or JWT
+- OAuth2 social login (Google, GitHub, Discord)
 - Two password hashing options: argon2id (default, OWASP recommended) or bcrypt
 - Exported `UserService` interface for DI
 - 4 events emitted for other modules to react to
@@ -19,13 +20,37 @@ The auth module owns identity management. It handles user registration, login, l
 
 ```toml
 [modules.auth]
-strategy = "jwt"           # "jwt" or "session"
+strategy = "session"       # "session", "jwt"
 hasher = "argon2id"        # "argon2id" or "bcrypt"
 session_ttl = "24h"
-min_password_length = 8
-jwt_secret = "your-secret-key"
+min_password_length = 12
+jwt_secret = ""            # required if strategy=jwt
 jwt_expiry = "1h"
 ```
+
+### OAuth Configuration
+
+When OAuth providers are enabled, users can sign in with their social accounts. OAuth works alongside session or JWT — the OAuth callback establishes a session or returns a token based on the configured strategy.
+
+```toml
+[modules.auth.oauth]
+enabled = true
+redirect_url = "http://localhost:4000"
+
+[modules.auth.oauth.google]
+client_id = ""
+client_secret = ""
+
+[modules.auth.oauth.github]
+client_id = ""
+client_secret = ""
+
+[modules.auth.oauth.discord]
+client_id = ""
+client_secret = ""
+```
+
+Leave `client_id` and `client_secret` empty to disable a specific provider. Only providers with credentials are registered.
 
 ## HTTP Routes
 
@@ -35,6 +60,22 @@ jwt_expiry = "1h"
 | POST | `/auth/login` | Authenticate and get token/session |
 | POST | `/auth/logout` | End session / invalidate token |
 | POST | `/auth/password-reset` | Request password reset |
+| GET | `/auth/oauth/{provider}` | Redirect to OAuth provider (Google, GitHub, Discord) |
+| GET | `/auth/oauth/{provider}/callback` | Handle OAuth callback, create/link user |
+
+OAuth routes are only registered when at least one provider is configured with credentials.
+
+## OAuth Flow
+
+1. User clicks "Sign in with Google" (or GitHub, Discord)
+2. Browser redirects to `/auth/oauth/google`
+3. The handler generates a CSRF state token, stores it in a cookie, and redirects to Google's consent screen
+4. Google redirects back to `/auth/oauth/google/callback` with an authorization code
+5. The handler exchanges the code for an access token, fetches user info (email)
+6. If the OAuth account is already linked, the user is logged in
+7. If not, the module checks for an existing user with the same email. If none exists, a new user is created automatically
+8. The OAuth account is linked to the user for future logins
+9. The configured strategy (session or JWT) establishes the authenticated state
 
 ## UserService Interface
 
@@ -98,3 +139,4 @@ devify auth:list-users
 |-------|--------|
 | `auth.users` | id, email, password_hash, created_at, updated_at |
 | `auth.password_resets` | id, user_id, token, expires_at, created_at |
+| `auth.oauth_accounts` | id, user_id, provider, provider_id, created_at |

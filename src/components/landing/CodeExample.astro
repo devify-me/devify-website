@@ -6,11 +6,14 @@ k, _ := kernel.NewKernel("config/config.toml",
     kernel.WithRouter(chiRouter.New()),
     kernel.WithDatabase(db),
     kernel.WithCache(cache),
+    kernel.WithMailer(mailer),
+    kernel.WithStorage(storage),
 )
 
-k.Register(authmod.New())     // identity & login
+k.Register(authmod.New())     // identity, login, OAuth
 k.Register(rbacmod.New())     // roles & permissions
 k.Register(tenantmod.New())   // multi-tenancy
+k.Register(billingmod.New())  // subscriptions & invoicing
 
 k.Boot() // resolves deps, runs migrations, wires events`;
 ---

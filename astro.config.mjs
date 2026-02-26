@@ -71,6 +71,7 @@ export default defineConfig({
 						{ slug: 'built-in-modules/apikey' },
 						{ slug: 'built-in-modules/webhook' },
 						{ slug: 'built-in-modules/audit' },
+						{ slug: 'built-in-modules/pwa' },
 					],
 				},
 				{ label: 'CLI Reference', slug: 'cli-reference' },

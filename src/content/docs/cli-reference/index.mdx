@@ -9,13 +9,37 @@ The Devify CLI provides 19 built-in commands organized into 6 categories, plus d
 
 ### devify init \<name\>
 
-Scaffold a new Devify project.
+Scaffold a new Devify project with full interactive setup.
 
 ```bash
 devify init my-app
 ```
 
-Interactive prompts for database engine selection and optional example module. Creates the full project structure with config, modules, and adapters.
+Walks you through a series of prompts to configure your project:
+
+| Step | Prompt | Options |
+|------|--------|---------|
+| 1 | Database engine | PostgreSQL (default), MySQL/MariaDB, SQLite, MongoDB, None |
+| 2 | Cache engine | Memory (default), Redis, BadgerDB |
+| 3 | Mail provider | SMTP (default), Resend, SendGrid, Postmark, SES, None |
+| 4 | Storage backend | Local (default), S3, MinIO, SFTP, WebDAV |
+| 5 | Renderer | Templ (default), Go templates |
+| 6 | Modules | Multi-select checklist — auth pre-selected |
+| 7 | OAuth providers | Google, GitHub, Discord (if auth selected) |
+| 8 | PWA capabilities | Offline, install prompt, camera, GPS, etc. (if PWA selected) |
+| 9 | Frontend | None, HTMX + Templ, React, Vue, Svelte, SolidJS |
+| 10 | Example module | Yes / No |
+
+**Module dependency resolution:** When you select a module, its dependencies are automatically included. For example, selecting billing auto-adds auth and tenant.
+
+**What gets generated:**
+- `cmd/app/main.go` — wired with all selected modules and adapters
+- `config/config.toml` — configured for all selected adapters
+- `compose.yml` — containers for database, cache, Mailpit, MinIO as needed
+- `Makefile` — build, dev, test, services targets (auto-detects Podman/Docker)
+- `go.mod` and `go.sum`
+- `.gitignore`
+- Frontend files (if HTMX or SPA selected)
 
 ### devify build
 
@@ -45,7 +69,7 @@ Generate `compose.yml` from `config/config.toml`.
 devify compose
 ```
 
-Reads the current configuration and generates a `compose.yml` with containers for the selected database engine, cache adapter (if Redis), and Mailpit (in development mode). Also includes any custom services declared via `[services.*]` config sections. Regenerate after changing adapters in config.
+Reads the current configuration and generates a `compose.yml` with containers for the selected database engine, cache adapter (if Redis), Mailpit (in development mode), and MinIO (if storage is MinIO). Also includes any custom services declared via `[services.*]` config sections. Regenerate after changing adapters in config.
 
 ### devify run
 

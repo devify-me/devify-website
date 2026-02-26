@@ -26,16 +26,26 @@ Adapters are concrete implementations of kernel interfaces. They live in the `ad
 
 ### Mail
 
-| Adapter | Backend |
-|---------|---------|
-| `adapters/mail/smtp` | SMTP with TLS/STARTTLS support |
+| Adapter | Backend | Notes |
+|---------|---------|-------|
+| `adapters/mail/smtp` | SMTP with TLS/STARTTLS | Universal. Works with Mailpit for local dev |
+| `adapters/mail/resend` | Resend API | Modern API, free tier (100 emails/day) |
+| `adapters/mail/sendgrid` | Twilio SendGrid | Industry standard, free tier (100/day) |
+| `adapters/mail/postmark` | Postmark | Best deliverability, transactional focus |
+| `adapters/mail/ses` | Amazon SES | Cheapest at scale, uses AWS SDK |
+
+All mail adapters implement the `kernel.Mailer` interface and fall back to log-only mode when credentials are missing — so your app always boots in development without configuration.
 
 ### Storage
 
 | Adapter | Backend | Features |
 |---------|---------|----------|
 | `adapters/storage/local` | Local filesystem | Path-traversal prevention |
-| `adapters/storage/s3` | AWS S3 | Presigned URLs, custom endpoints (MinIO) |
+| `adapters/storage/s3` | AWS S3 / MinIO | Presigned URLs, custom endpoints, path-style addressing |
+| `adapters/storage/sftp` | SFTP server | SSH key or password authentication |
+| `adapters/storage/webdav` | WebDAV server | HTTP-based file access |
+
+The S3 adapter supports MinIO and any S3-compatible service via the `endpoint` and `force_path_style` config fields.
 
 ### Router
 
@@ -52,22 +62,26 @@ Adapters are concrete implementations of kernel interfaces. They live in the `ad
 
 ## How Adapters Are Wired
 
-In `cmd/app/main.go`, adapters are created based on configuration and passed to the kernel:
+The generated `cmd/app/main.go` uses boot helpers from `cmd/internal/boot/` to create adapters based on configuration:
 
 ```go
 cfg, _ := kernel.LoadConfig("config/config.toml")
-logger := kernel.NewSlogLogger(cfg.Get("app.log_level"))
+logger := kernel.NewSlogLogger(cfg.GetString("app.log_level", "info"))
+router := chiRouter.New()
 
-// Create adapters based on config
-db, _ := postgres.New(cfg, logger)    // or mysql.New(), sqlite.New()
-router := chi.New()
-cache := redis.New(cfg, logger)       // or memory.New(), badger.New()
+// Adapters are created from config — engine is read from [database], [cache], etc.
+db, _ := boot.CreateDatabase(cfg, logger)    // switches on database.engine
+cache, _ := boot.CreateCache(cfg, logger)    // switches on cache.engine
+mailer, _ := boot.CreateMailer(cfg, logger)  // switches on mail.engine
+storage, _ := boot.CreateStorage(cfg, logger) // switches on storage.engine
 
 // Wire into kernel
 k, _ := kernel.NewKernel("config/config.toml",
     kernel.WithRouter(router),
     kernel.WithDatabase(db),
     kernel.WithCache(cache),
+    kernel.WithMailer(mailer),
+    kernel.WithStorage(storage),
     kernel.WithLogger(logger),
 )
 ```
