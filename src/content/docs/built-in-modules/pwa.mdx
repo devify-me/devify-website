@@ -1,0 +1,92 @@
+---
+title: PWA Module
+description: Progressive web app capabilities — offline support, install prompts, device APIs, and push notifications.
+---
+
+The PWA module adds progressive web app capabilities to any Devify application. It works with both HTMX and SPA frontends.
+
+## Features
+
+- Dynamic `manifest.json` generation from config
+- Service worker with configurable caching strategy
+- Offline fallback page
+- "Add to Home Screen" install prompt handler
+- Device API helpers (camera, video, audio, GPS)
+- Push notification integration
+- Background sync for offline-first data submission
+- Middleware that auto-injects service worker registration into HTML responses
+
+## Capabilities
+
+During `devify init`, when the PWA module is selected, you choose which capabilities to include:
+
+| Capability | Description |
+|-----------|-------------|
+| **Offline support** | Service worker with configurable caching (cache-first, network-first, stale-while-revalidate) |
+| **Install prompt** | "Add to Home Screen" banner with JavaScript handler |
+| **Camera access** | MediaDevices API wrapper with permission handling |
+| **Video capture** | Video recording with MediaRecorder API |
+| **Audio capture** | Audio recording with MediaRecorder API |
+| **GPS / Geolocation** | Geolocation API wrapper with permission handling |
+| **Push notifications** | Web Push API integration (pairs with the notification module) |
+| **Background sync** | Background Sync API for offline-first data submission |
+
+Selected capabilities determine which service worker features and JavaScript helpers are generated.
+
+## Configuration
+
+```toml
+[modules.pwa]
+enabled = true
+name = "My App"
+short_name = "MyApp"
+theme_color = "#4f46e5"
+background_color = "#ffffff"
+display = "standalone"
+offline_strategy = "cache-first"    # cache-first, network-first, stale-while-revalidate
+
+[modules.pwa.capabilities]
+offline = true
+install_prompt = true
+camera = false
+video = false
+audio = false
+geolocation = false
+push_notifications = false
+background_sync = false
+```
+
+## HTTP Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/pwa/manifest.json` | W3C web app manifest generated from config |
+| GET | `/pwa/sw.js` | Service worker script (dynamically built from capabilities) |
+| GET | `/pwa/offline` | Offline fallback page (when offline capability is enabled) |
+
+## Middleware
+
+The PWA module includes auto-injection middleware that adds a service worker registration `<script>` tag to all HTML responses. This ensures the service worker is registered on every page without manual setup.
+
+## How It Works
+
+### Manifest
+
+The manifest is served dynamically from your TOML config. Change the app name, theme color, or display mode in config and it updates immediately — no static file to manage.
+
+### Service Worker
+
+The service worker JavaScript is generated at runtime based on your selected capabilities. Only the handlers you chose during init are included:
+
+- **Offline**: Caches specified routes and serves from cache when offline
+- **Install prompt**: Intercepts the `beforeinstallprompt` event
+- **Push notifications**: Listens for push events and displays notifications
+- **Background sync**: Queues failed requests and replays them when connectivity returns
+
+### Device APIs
+
+When device capabilities (camera, video, audio, GPS) are enabled, the module generates JavaScript helper files that wrap the browser APIs with proper permission handling and error recovery.
+
+## Dependencies
+
+The PWA module has no module dependencies — it works with any Devify setup. However, push notifications pair naturally with the [notification module](/built-in-modules/notification/) for server-side notification management.
