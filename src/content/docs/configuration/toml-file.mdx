@@ -62,6 +62,13 @@ jwt_expiry = "1h"
 
 [modules.rbac]
 default_role = "user"
+
+[modules.tenant]
+resolution = "header"            # "header", "subdomain", "path"
+header_name = "X-Tenant-ID"      # header name when resolution = "header"
+auto_create_personal = true      # create personal tenant on registration
+max_tenants_per_user = 10        # max tenants a user can own (0 = unlimited)
+invite_expiry = "72h"            # invite link expiration
 ```
 
 ## Section Reference
